@@ -343,6 +343,7 @@ DPRINTFR(MYperceptron, "At the %lluth lookup, %d%% less than theta(%d),\
     for (int i = 0; i < maxHisLen; i++)
         history->globalHistory[i] = threadHistory[tid].globalHistory[i];
     history->globalPredTaken = taken;
+    history->isUncond = false;
     bp_history = (void *)history;
 
     // Speculative updates the GHR because of OoO
@@ -359,6 +360,7 @@ MyPerceptron::uncondBranch(ThreadID tid, Addr pc, void * &bp_history)
         history->globalHistory[i] = threadHistory[tid].globalHistory[i];
     history->globalPredTaken = true;
     history->globalUsed = true;
+    history->isUncond = true;
     bp_history = static_cast<void *>(history);
     updateGlobalHist(tid, true);
 }
@@ -476,6 +478,13 @@ MyPerceptron::update(ThreadID tid, Addr branch_addr, bool taken,
 
     // Get the prediction
     BPHistory *history = static_cast <BPHistory *>(bp_history);
+
+    bool is_uncond = history->isUncond;
+    // Do not update on unconditional branches
+    if (is_uncond){
+        delete history;
+        return;
+    }
 
     // Get the global history of this thread
     uint8_t *global_history = history->globalHistory;

@@ -167,10 +167,10 @@ class DerivO3CPU(BaseCPU):
     #                                                   Parent.numThreads),
     #branchPred = Param.BranchPredictor(PerceptronLocalBP(numThreads =
     #                                                  Parent.numThreads),
-    branchPred = Param.BranchPredictor(MyPerceptron(numThreads =
-                                                       Parent.numThreads),
-    #branchPred = Param.BranchPredictor(PathPerceptron(numThreads =
-    #                                                    Parent.numThreads),
+    #branchPred = Param.BranchPredictor(MyPerceptron(numThreads =
+    #                                                   Parent.numThreads),
+    branchPred = Param.BranchPredictor(PathPerceptron(numThreads =
+                                                        Parent.numThreads),
     #branchPred = Param.BranchPredictor(Perceptron(numThreads =
     #                                                    Parent.numThreads),
     #branchPred = Param.BranchPredictor(LocalBP(numThreads =

@@ -117,6 +117,7 @@ class MyPerceptron : public BPredUnit{
             uint8_t *globalHistory;
             bool globalPredTaken;
             bool globalUsed;
+            bool isUncond;
 
             BPHistory(unsigned hislen){
                 globalHistory = new uint8_t [hislen];

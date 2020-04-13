@@ -15,7 +15,7 @@ import argparse
 
 numIQ = 128
 
-debug_flag = 'MYperceptron'
+debug_flag = 'PAthPerceptron'
 
 target_function = 'all_function_spec.txt'
 
