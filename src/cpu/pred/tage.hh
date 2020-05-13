@@ -35,13 +35,12 @@
  */
 
 /* @file
- * Implementation of a L-TAGE branch predictor. TAGE is a global-history based
+ * Implementation of a TAGE branch predictor. TAGE is a global-history based
  * branch predictor. It features a PC-indexed bimodal predictor and N
  * partially tagged tables, indexed with a hash of the PC and the global
  * branch history. The different lengths of global branch history used to
  * index the partially tagged tables grow geometrically. A small path history
- * is also used in the hash. L-TAGE also features a loop predictor that records
- * iteration count of loops and predicts accordingly.
+ * is also used in the hash.
  *
  * All TAGE tables are accessed in parallel, and the one using the longest
  * history that matches provides the prediction (some exceptions apply).
@@ -49,67 +48,48 @@
  * one that predicted when the prediction is incorrect.
  */
 
-#ifndef __CPU_PRED_LTAGE
-#define __CPU_PRED_LTAGE
-
+#ifndef __CPU_PRED_TAGE
+#define __CPU_PRED_TAGE
 
 #include <vector>
 
 #include "base/types.hh"
-#include "cpu/pred/loop_predictor.hh"
-#include "cpu/pred/tage.hh"
-#include "params/LTAGE.hh"
+#include "cpu/pred/bpred_unit.hh"
+#include "cpu/pred/tage_base.hh"
+#include "params/TAGE.hh"
 
-class LTAGE : public TAGE
+class TAGE: public BPredUnit
 {
-  public:
-    LTAGE(const LTAGEParams *params);
-
-    // Base class methods.
-    void squash(ThreadID tid, void *bp_history) override;
-    void update(ThreadID tid, Addr branch_addr, bool taken, void *bp_history,
-                bool squashed, const StaticInstPtr & inst,
-                Addr corrTarget = MaxAddr) override;
-
-    void init() override;
-    virtual void regStats() override;
-
   protected:
-    /** The loop predictor object */
-    LoopPredictor *loopPredictor;
+    TAGEBase *tage;
 
-    // more provider types
-    enum {
-        LOOP = TAGEBase::LAST_TAGE_PROVIDER_TYPE + 1,
-        LAST_LTAGE_PROVIDER_TYPE = LOOP
-    };
+    struct TageBranchInfo {
+        TAGEBase::BranchInfo *tageBranchInfo;
 
-    // Primary branch history entry
-    struct LTageBranchInfo : public TageBranchInfo
-    {
-        LoopPredictor::BranchInfo *lpBranchInfo;
-        LTageBranchInfo(TAGEBase &tage, LoopPredictor &lp)
-          : TageBranchInfo(tage), lpBranchInfo(lp.makeBranchInfo())
+        TageBranchInfo(TAGEBase &tage) : tageBranchInfo(tage.makeBranchInfo())
         {}
 
-        virtual ~LTageBranchInfo()
+        virtual ~TageBranchInfo()
         {
-            delete lpBranchInfo;
+            delete tageBranchInfo;
         }
     };
 
-    /**
-     * Get a branch prediction from LTAGE. *NOT* an override of
-     * BpredUnit::predict().
-     * @param tid The thread ID to select the global
-     * histories to use.
-     * @param branch_pc The unshifted branch PC.
-     * @param cond_branch True if the branch is conditional.
-     * @param b Reference to wrapping pointer to allow storing
-     * derived class prediction information in the base class.
-     */
-    bool predict(
-        ThreadID tid, Addr branch_pc, bool cond_branch, void* &b) override;
+    virtual bool predict(ThreadID tid, Addr branch_pc, bool cond_branch,
+                         void* &b);
+
+  public:
+
+    TAGE(const TAGEParams *params);
+
+    // Base class methods.
+    void uncondBranch(ThreadID tid, Addr br_pc, void* &bp_history) override;
+    bool lookup(ThreadID tid, Addr branch_addr, void* &bp_history) override;
+    void btbUpdate(ThreadID tid, Addr branch_addr, void* &bp_history) override;
+    void update(ThreadID tid, Addr branch_addr, bool taken, void *bp_history,
+                bool squashed, const StaticInstPtr & inst,
+                Addr corrTarget = MaxAddr) override;
+    virtual void squash(ThreadID tid, void *bp_history) override;
 };
 
-#endif // __CPU_PRED_LTAGE
+#endif // __CPU_PRED_TAGE
