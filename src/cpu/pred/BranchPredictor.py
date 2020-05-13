@@ -61,29 +61,13 @@ class LocalBP(BranchPredictor):
     localPredictorSize = Param.Unsigned(2048, "Size of local predictor")
     localCtrBits = Param.Unsigned(2, "Bits per counter")
 
-class PerceptronLocalBP(BranchPredictor):
-    type = 'PerceptronLocalBP'
-    cxx_class = 'PerceptronLocalBP'
-    cxx_header = "cpu/pred/perceptron_local.hh"
-
-    localPredictorSize = Param.Unsigned(2048, "Size of local predictor")
-    localPercepSize = Param.Unsigned(64, "Bits per counter")
-
-class Perceptron(BranchPredictor):
-    type = 'Perceptron'
-    cxx_class = 'Perceptron'
-    cxx_header = "cpu/pred/perceptron.hh"
-
-    globalPredictorSize = Param.Unsigned(64, "Size of global Perdictor")
-    numberOfPerceptrons = Param.Unsigned(8192, "Number of Perceptrons")
-
 class MyPerceptron(BranchPredictor):
     type = 'MyPerceptron'
     cxx_class = 'MyPerceptron'
     cxx_header = "cpu/pred/myperceptron.hh"
 
     globalPredictorSize = Param.Unsigned(256, "Size of global Perdictor")
-    sizeOfPerceptrons   = Param.Unsigned(16, "Size of each Perceptron")
+    sizeOfPerceptrons   = Param.Unsigned(32, "Size of each Perceptron")
     pseudoTaggingBit    = Param.Unsigned(0, "Numeber of pseudo-tagging bits")
     indexMethod         = Param.String('MODULO', "Indexing method")
     bitsPerWeight       = Param.Unsigned(8, "Bits used to store each weight")
@@ -92,7 +76,7 @@ class MyPerceptron(BranchPredictor):
     thresholdCounterBit = Param.Unsigned(0, "Bits used to store TC")
     redundantBit        = Param.Unsigned(0,
                             "n-bits to represent a history bit")
-    maxHisLen           = Param.Unsigned(128,
+    maxHisLen           = Param.Unsigned(256,
                             "max record length of global his")
 
 class PathPerceptron(BranchPredictor):
@@ -100,8 +84,9 @@ class PathPerceptron(BranchPredictor):
     cxx_class = 'PathPerceptron'
     cxx_header = "cpu/pred/pathperceptron.hh"
 
-    globalPredictorSize = Param.Unsigned(8192, "Size of global Perdictor")
-    numberOfPerceptrons = Param.Unsigned(128, "Number of Perceptrons")
+    globalPredictorSize = Param.Unsigned(256, "Size of global Perdictor")
+    hislen              = Param.Unsigned(32, "History length")
+    maxhislen           = Param.Unsigned(256, "mac record len of global his")
 
 class TournamentBP(BranchPredictor):
     type = 'TournamentBP'
