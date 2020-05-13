@@ -46,6 +46,7 @@ from os import getcwd
 from os.path import join as joinpath
 
 from common import CpuConfig
+from common import BPConfig
 from common import MemConfig
 from common import SSConfig
 
@@ -481,6 +482,9 @@ def run(options, root, testsys, cpu_class):
             # Add checker cpu if selected
             if options.checker:
                 switch_cpus[i].addCheckerCpu()
+            if options.bp_type:
+                bpClass = BPConfig.get(options.bp_type)
+                switch_cpus[i].branchPred = bpClass()
 
             # O3 Config
             SSConfig.modifyO3CPUConfig(options, switch_cpus[i])

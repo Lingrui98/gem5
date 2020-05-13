@@ -188,7 +188,7 @@ def rv_origin(benchmark, some_extra_args, outdir_b):
         if opt.use_ltage:
             options += ['--use-ltage']
         elif opt.use_tournament:
-            options += ['--use-tournament']
+            options += ['--bp-type=TournamentBP']
         else:
             if opt.bp_size != None:
                 options += ['--bp-size={}'.format(opt.bp_size)]
