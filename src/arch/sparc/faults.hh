@@ -99,7 +99,8 @@ class SparcFault : public SparcFaultBase
 
 class PowerOnReset : public SparcFault<PowerOnReset>
 {
-    void invoke(ThreadContext * tc, const StaticInstPtr &inst =
+  public:
+    void invoke(ThreadContext *tc, const StaticInstPtr &inst =
                 StaticInst::nullStaticInstPtr);
 };
 
@@ -354,12 +355,12 @@ void doREDFault(ThreadContext *tc, TrapType tt);
 
 void doNormalFault(ThreadContext *tc, TrapType tt, bool gotoHpriv);
 
-void getREDVector(MiscReg TT, Addr &PC, Addr &NPC);
+void getREDVector(RegVal TT, Addr &PC, Addr &NPC);
 
-void getHyperVector(ThreadContext * tc, Addr &PC, Addr &NPC, MiscReg TT);
+void getHyperVector(ThreadContext * tc, Addr &PC, Addr &NPC, RegVal TT);
 
-void getPrivVector(ThreadContext *tc, Addr &PC, Addr &NPC, MiscReg TT,
-                   MiscReg TL);
+void getPrivVector(ThreadContext *tc, Addr &PC, Addr &NPC, RegVal TT,
+                   RegVal TL);
 
 } // namespace SparcISA
 

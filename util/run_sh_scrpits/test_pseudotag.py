@@ -11,7 +11,7 @@ options = [rv_origin]
 size   = 128
 hislen = 127
 
-p_bits = [4, 6, 8, 10]
+p_bits = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
 print(p_bits)
 
 num_threads = 6

@@ -20,6 +20,7 @@ m5out
 /util/tap/m5tap
 /util/term/m5term
 /system/arm/dt/*.dtb
+<<<<<<< HEAD
 /system/arm/simple_bootloader/*.o
 /system/arm/simple_bootloader/boot.arm
 /system/arm/simple_bootloader/boot_emm.arm
@@ -32,3 +33,13 @@ simpoint/
 /util/run_sh_scrpits/simpoint-profile-single.py
 /util/run_sh_scrpits/tmp_spec.txt
 /util/run_sh_scrpits/ts*
+=======
+/system/arm/dt/.gen
+/system/arm/bootloader/arm/*.o
+/system/arm/bootloader/arm/boot.arm
+/system/arm/bootloader/arm/boot_emm.arm
+/system/arm/bootloader/arm64/*.o
+/system/arm/bootloader/arm64/boot.arm64
+/system/arm/bootloader/arm64/boot_emm.arm64
+/system/arm/bootloader/arm64/boot_v2.arm64
+>>>>>>> 9fc9c67b4242c03f165951775be5cd0812f2a705

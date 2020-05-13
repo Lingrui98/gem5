@@ -47,7 +47,7 @@ copyRegs(ThreadContext *src, ThreadContext *dest)
 
     // Then loop through the floating point registers.
     for (int i = 0; i < NumFloatRegs; ++i)
-        dest->setFloatRegBits(i, src->readFloatRegBits(i));
+        dest->setFloatReg(i, src->readFloatReg(i));
 
     // Would need to add condition-code regs if implemented
     assert(NumCCRegs == 0);
@@ -71,12 +71,5 @@ skipFunction(ThreadContext *tc)
 {
     panic("Not Implemented for POWER");
 }
-
-void
-initCPU(ThreadContext *tc, int cpuId)
-{
-    panic("initCPU not implemented for POWER.\n");
-}
-
 
 } // namespace PowerISA

@@ -41,6 +41,7 @@
 #include <map>
 #include <string>
 
+#include "arch/generic/isa.hh"
 #include "arch/riscv/registers.hh"
 #include "arch/riscv/types.hh"
 #include "base/bitfield.hh"
@@ -62,10 +63,10 @@ enum PrivilegeMode {
     PRV_M = 3
 };
 
-class ISA : public SimObject
+class ISA : public BaseISA
 {
   protected:
-    std::vector<MiscReg> miscRegFile;
+    std::vector<RegVal> miscRegFile;
 
     bool hpmCounterEnabled(int counter) const;
 
@@ -74,23 +75,24 @@ class ISA : public SimObject
 
     void clear();
 
-    MiscReg readMiscRegNoEffect(int misc_reg) const;
-    MiscReg readMiscReg(int misc_reg, ThreadContext *tc);
-    void setMiscRegNoEffect(int misc_reg, const MiscReg &val);
-    void setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc);
+    RegVal readMiscRegNoEffect(int misc_reg) const;
+    RegVal readMiscReg(int misc_reg, ThreadContext *tc);
+    void setMiscRegNoEffect(int misc_reg, RegVal val);
+    void setMiscReg(int misc_reg, RegVal val, ThreadContext *tc);
 
     RegId flattenRegId(const RegId &regId) const { return regId; }
     int flattenIntIndex(int reg) const { return reg; }
     int flattenFloatIndex(int reg) const { return reg; }
     int flattenVecIndex(int reg) const { return reg; }
     int flattenVecElemIndex(int reg) const { return reg; }
+    int flattenVecPredIndex(int reg) const { return reg; }
     int flattenCCIndex(int reg) const { return reg; }
     int flattenMiscIndex(int reg) const { return reg; }
 
     void startup(ThreadContext *tc) {}
 
     /// Explicitly import the otherwise hidden startup
-    using SimObject::startup;
+    using BaseISA::startup;
 
     const Params *params() const;
 

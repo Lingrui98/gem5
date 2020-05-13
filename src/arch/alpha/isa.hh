@@ -37,6 +37,7 @@
 
 #include "arch/alpha/registers.hh"
 #include "arch/alpha/types.hh"
+#include "arch/generic/isa.hh"
 #include "base/types.hh"
 #include "cpu/reg_class.hh"
 #include "sim/sim_object.hh"
@@ -50,7 +51,7 @@ class ThreadContext;
 
 namespace AlphaISA
 {
-    class ISA : public SimObject
+    class ISA : public BaseISA
     {
       public:
         typedef uint64_t InternalProcReg;
@@ -74,13 +75,12 @@ namespace AlphaISA
 
       public:
 
-        MiscReg readMiscRegNoEffect(int misc_reg, ThreadID tid = 0) const;
-        MiscReg readMiscReg(int misc_reg, ThreadContext *tc, ThreadID tid = 0);
+        RegVal readMiscRegNoEffect(int misc_reg, ThreadID tid = 0) const;
+        RegVal readMiscReg(int misc_reg, ThreadContext *tc, ThreadID tid = 0);
 
-        void setMiscRegNoEffect(int misc_reg, const MiscReg &val,
-                                ThreadID tid = 0);
-        void setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc,
-                        ThreadID tid = 0);
+        void setMiscRegNoEffect(int misc_reg, RegVal val, ThreadID tid=0);
+        void setMiscReg(int misc_reg, RegVal val, ThreadContext *tc,
+                        ThreadID tid=0);
 
         void
         clear()
@@ -122,6 +122,12 @@ namespace AlphaISA
             return reg;
         }
 
+        int
+        flattenVecPredIndex(int reg) const
+        {
+            return reg;
+        }
+
         // dummy
         int
         flattenCCIndex(int reg) const
@@ -142,7 +148,7 @@ namespace AlphaISA
         void startup(ThreadContext *tc) {}
 
         /// Explicitly import the otherwise hidden startup
-        using SimObject::startup;
+        using BaseISA::startup;
     };
 }
 

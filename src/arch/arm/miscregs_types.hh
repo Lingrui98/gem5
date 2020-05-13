@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010-2018 ARM Limited
+ * Copyright (c) 2010-2019 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -55,7 +55,7 @@ namespace ArmISA
         Bitfield<27> q;
         Bitfield<26, 25> it1;
         Bitfield<24> j;
-        Bitfield<23, 22> res0_23_22;
+        Bitfield<22> pan;
         Bitfield<21> ss;        // AArch64
         Bitfield<20> il;        // AArch64
         Bitfield<19, 16> ge;
@@ -201,6 +201,7 @@ namespace ArmISA
         Bitfield<10> tfp;  // AArch64
         Bitfield<9>  tcp9;
         Bitfield<8>  tcp8;
+        Bitfield<8>  tz;  // SVE
         Bitfield<7>  tcp7;
         Bitfield<6>  tcp6;
         Bitfield<5>  tcp5;
@@ -232,14 +233,25 @@ namespace ArmISA
     EndBitUnion(HSTR)
 
     BitUnion64(HCR)
+        Bitfield<47>     fien;
+        Bitfield<46>     fwb;
+        Bitfield<45>     nv2;
+        Bitfield<44>     at;
+        Bitfield<43>     nv1;
+        Bitfield<42>     nv;
+        Bitfield<41>     api;
+        Bitfield<40>     apk;
+        Bitfield<38>     miocnce;
+        Bitfield<37>     tea;
+        Bitfield<36>     terr;
+        Bitfield<35>     tlor;
         Bitfield<34>     e2h;   // AArch64
-        Bitfield<33>     id;    // AArch64
-        Bitfield<32>     cd;    // AArch64
+        Bitfield<33>     id;
+        Bitfield<32>     cd;
         Bitfield<31>     rw;    // AArch64
         Bitfield<30>     trvm;  // AArch64
         Bitfield<29>     hcd;   // AArch64
         Bitfield<28>     tdz;   // AArch64
-
         Bitfield<27>     tge;
         Bitfield<26>     tvm;
         Bitfield<25>     ttlb;
@@ -293,14 +305,22 @@ namespace ArmISA
     EndBitUnion(NSACR)
 
     BitUnion32(SCR)
+        Bitfield<21> fien;
+        Bitfield<20> nmea;
+        Bitfield<19> ease;
+        Bitfield<18> eel2; // AArch64 (Armv8.4-SecEL2)
+        Bitfield<17> api;
+        Bitfield<16> apk;
+        Bitfield<15> teer;
+        Bitfield<14> tlor;
         Bitfield<13> twe;
         Bitfield<12> twi;
-        Bitfield<11> st;  // AArch64
-        Bitfield<10> rw;  // AArch64
+        Bitfield<11> st;   // AArch64
+        Bitfield<10> rw;   // AArch64
         Bitfield<9> sif;
         Bitfield<8> hce;
         Bitfield<7> scd;
-        Bitfield<7> smd;  // AArch64
+        Bitfield<7> smd;   // AArch64
         Bitfield<6> nEt;
         Bitfield<5> aw;
         Bitfield<4> fw;
@@ -311,16 +331,21 @@ namespace ArmISA
     EndBitUnion(SCR)
 
     BitUnion32(SCTLR)
+        Bitfield<31>   enia;    // ARMv8.3 PAuth
+        Bitfield<30>   enib;    // ARMv8.3 PAuth
         Bitfield<30>   te;      // Thumb Exception Enable (AArch32 only)
         Bitfield<29>   afe;     // Access flag enable (AArch32 only)
         Bitfield<28>   tre;     // TEX remap enable (AArch32 only)
         Bitfield<27>   nmfi;    // Non-maskable FIQ support (ARMv7 only)
+        Bitfield<27>   enda;    // ARMv8.3 PAuth
         Bitfield<26>   uci;     // Enable EL0 access to DC CVAU, DC CIVAC,
                                 // DC CVAC and IC IVAU instructions
                                 // (AArch64 SCTLR_EL1 only)
         Bitfield<25>   ee;      // Exception Endianness
         Bitfield<24>   e0e;     // Endianness of explicit data accesses at EL0
                                 // (AArch64 SCTLR_EL1 only)
+        Bitfield<23>   span;    // Set Priviledge Access Never on taking
+                                // an exception
         Bitfield<23>   xp;      // Extended page table enable (dropped in ARMv7)
         Bitfield<22>   u;       // Alignment (dropped in ARMv7)
         Bitfield<21>   fi;      // Fast interrupts configuration enable
@@ -342,6 +367,7 @@ namespace ArmISA
         Bitfield<14>   dze;     // Enable EL0 access to DC ZVA
                                 // (AArch64 SCTLR_EL1 only)
         Bitfield<13>   v;       // Vectors bit (AArch32 only)
+        Bitfield<13>   endb;    // ARMv8.3 PAuth
         Bitfield<12>   i;       // Instruction cache enable
         Bitfield<11>   z;       // Branch prediction enable (ARMv7 only)
         Bitfield<10>   sw;      // SWP/SWPB enable (ARMv7 only)
@@ -375,6 +401,7 @@ namespace ArmISA
         Bitfield<13, 12> cp6;
         Bitfield<15, 14> cp7;
         Bitfield<17, 16> cp8;
+        Bitfield<17, 16> zen;  // SVE
         Bitfield<19, 18> cp9;
         Bitfield<21, 20> cp10;
         Bitfield<21, 20> fpen;  // AArch64
@@ -460,6 +487,7 @@ namespace ArmISA
         Bitfield<5> pd1;
         // Long-descriptor translation table format
         Bitfield<2, 0> t0sz;
+        Bitfield<6> t2e;
         Bitfield<7> epd0;
         Bitfield<9, 8> irgn0;
         Bitfield<11, 10> orgn0;
@@ -481,6 +509,8 @@ namespace ArmISA
         // TCR_EL2/3 (AArch64)
         Bitfield<18, 16> ps;
         Bitfield<20> tbi;
+        Bitfield<41> hpd0;
+        Bitfield<42> hpd1;
     EndBitUnion(TTBCR)
 
     // Fields of TCR_EL{1,2,3} (mostly overlapping)
@@ -497,14 +527,22 @@ namespace ArmISA
         Bitfield<21, 16> t1sz; // EL1
         Bitfield<22> a1; // EL1
         Bitfield<23> epd1; // EL1
+        Bitfield<24> hpd; // EL2/EL3, E2H=0
         Bitfield<25, 24> irgn1; // EL1
         Bitfield<27, 26> orgn1; // EL1
         Bitfield<29, 28> sh1; // EL1
+        Bitfield<29> tbid; // EL2
         Bitfield<31, 30> tg1; // EL1
         Bitfield<34, 32> ips; // EL1
         Bitfield<36> as; // EL1
         Bitfield<37> tbi0; // EL1
         Bitfield<38> tbi1; // EL1
+        Bitfield<39> ha;
+        Bitfield<40> hd;
+        Bitfield<41> hpd0;
+        Bitfield<42> hpd1;
+        Bitfield<51> tbid0; // EL1
+        Bitfield<52> tbid1; // EL1
     EndBitUnion(TCR)
 
     BitUnion32(HTCR)
@@ -512,6 +550,7 @@ namespace ArmISA
         Bitfield<9, 8> irgn0;
         Bitfield<11, 10> orgn0;
         Bitfield<13, 12> sh0;
+        Bitfield<24> hpd;
     EndBitUnion(HTCR)
 
     BitUnion32(VTCR_t)
@@ -524,6 +563,8 @@ namespace ArmISA
         Bitfield<13, 12> sh0;
         Bitfield<15, 14> tg0;
         Bitfield<18, 16> ps; // Only defined for VTCR_EL2
+        Bitfield<21> ha;     // Only defined for VTCR_EL2
+        Bitfield<22> hd;     // Only defined for VTCR_EL2
     EndBitUnion(VTCR_t)
 
     BitUnion32(PRRR)
@@ -626,8 +667,16 @@ namespace ArmISA
         Bitfield<20> tta;
         Bitfield<13, 12> res1_13_12_el2;
         Bitfield<10> tfp;
-        Bitfield<9, 0> res1_9_0_el2;
+        Bitfield<9> res1_9_el2;
+        Bitfield<8> res1_8_el2;
+        Bitfield<8> ez;  // SVE (CPTR_EL3)
+        Bitfield<8> tz;  // SVE (CPTR_EL2)
+        Bitfield<7, 0> res1_7_0_el2;
    EndBitUnion(CPTR)
+
+    BitUnion64(ZCR)
+        Bitfield<3, 0> len;
+    EndBitUnion(ZCR)
 
 }
 

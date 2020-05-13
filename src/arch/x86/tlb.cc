@@ -42,7 +42,6 @@
 #include <cstring>
 #include <memory>
 
-#include "arch/generic/mmapped_ipr.hh"
 #include "arch/x86/faults.hh"
 #include "arch/x86/insts/microldstop.hh"
 #include "arch/x86/pagetable_walker.hh"
@@ -61,7 +60,7 @@ namespace X86ISA {
 
 TLB::TLB(const Params *p)
     : BaseTLB(p), configAddress(0), size(p->size),
-      tlb(size), lruSeq(0)
+      tlb(size), lruSeq(0), m5opRange(p->system->m5opRange())
 {
     if (!size)
         fatal("TLBs must have a non-zero size.\n");
@@ -185,10 +184,10 @@ TLB::translateInt(const RequestPtr &req, ThreadContext *tc)
         if (!msrAddrToIndex(regNum, vaddr))
             return std::make_shared<GeneralProtection>(0);
 
-        //The index is multiplied by the size of a MiscReg so that
+        //The index is multiplied by the size of a RegVal so that
         //any memory dependence calculations will not see these as
         //overlapping.
-        req->setPaddr((Addr)regNum * sizeof(MiscReg));
+        req->setPaddr((Addr)regNum * sizeof(RegVal));
         return NoFault;
     } else if (prefix == IntAddrPrefixIO) {
         // TODO If CPL > IOPL or in virtual mode, check the I/O permission
@@ -200,7 +199,7 @@ TLB::translateInt(const RequestPtr &req, ThreadContext *tc)
         assert(!(IOPort & ~0xFFFF));
         if (IOPort == 0xCF8 && req->getSize() == 4) {
             req->setFlags(Request::MMAPPED_IPR);
-            req->setPaddr(MISCREG_PCI_CONFIG_ADDRESS * sizeof(MiscReg));
+            req->setPaddr(MISCREG_PCI_CONFIG_ADDRESS * sizeof(RegVal));
         } else if ((IOPort & ~mask(2)) == 0xCFC) {
             req->setFlags(Request::UNCACHEABLE | Request::STRICT_ORDER);
             Addr configAddress =
@@ -229,19 +228,14 @@ TLB::finalizePhysical(const RequestPtr &req,
 {
     Addr paddr = req->getPaddr();
 
-    AddrRange m5opRange(0xFFFF0000, 0xFFFFFFFF);
-
     if (m5opRange.contains(paddr)) {
-        req->setFlags(Request::MMAPPED_IPR | Request::GENERIC_IPR |
-                      Request::STRICT_ORDER);
-        req->setPaddr(GenericISA::iprAddressPseudoInst((paddr >> 8) & 0xFF,
-                                                       paddr & 0xFF));
+        req->setFlags(Request::MMAPPED_IPR | Request::STRICT_ORDER);
     } else if (FullSystem) {
         // Check for an access to the local APIC
         LocalApicBase localApicBase =
             tc->readMiscRegNoEffect(MISCREG_APIC_BASE);
         AddrRange apicRange(localApicBase.base * PageBytes,
-                            (localApicBase.base + 1) * PageBytes - 1);
+                            (localApicBase.base + 1) * PageBytes);
 
         if (apicRange.contains(paddr)) {
             // The Intel developer's manuals say the below restrictions apply,
@@ -443,6 +437,8 @@ TLB::translateTiming(const RequestPtr &req, ThreadContext *tc,
         TLB::translate(req, tc, translation, mode, delayedResponse, true);
     if (!delayedResponse)
         translation->finish(fault, req, tc, mode);
+    else
+        translation->markDelayed();
 }
 
 Walker *
@@ -455,7 +451,7 @@ void
 TLB::regStats()
 {
     using namespace Stats;
-
+    BaseTLB::regStats();
     rdAccesses
         .name(name() + ".rdAccesses")
         .desc("TLB accesses on read requests");
@@ -511,10 +507,10 @@ TLB::unserialize(CheckpointIn &cp)
     }
 }
 
-BaseMasterPort *
-TLB::getMasterPort()
+Port *
+TLB::getTableWalkerPort()
 {
-    return &walker->getMasterPort("port");
+    return &walker->getPort("port");
 }
 
 } // namespace X86ISA

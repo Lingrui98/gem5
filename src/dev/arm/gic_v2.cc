@@ -51,19 +51,22 @@
 #include "mem/packet.hh"
 #include "mem/packet_access.hh"
 
-const AddrRange GicV2::GICD_IGROUPR   (0x080, 0x0ff);
-const AddrRange GicV2::GICD_ISENABLER (0x100, 0x17f);
-const AddrRange GicV2::GICD_ICENABLER (0x180, 0x1ff);
-const AddrRange GicV2::GICD_ISPENDR   (0x200, 0x27f);
-const AddrRange GicV2::GICD_ICPENDR   (0x280, 0x2ff);
-const AddrRange GicV2::GICD_ISACTIVER (0x300, 0x37f);
-const AddrRange GicV2::GICD_ICACTIVER (0x380, 0x3ff);
-const AddrRange GicV2::GICD_IPRIORITYR(0x400, 0x7ff);
-const AddrRange GicV2::GICD_ITARGETSR (0x800, 0xbff);
-const AddrRange GicV2::GICD_ICFGR     (0xc00, 0xcff);
+const AddrRange GicV2::GICD_IGROUPR   (0x080, 0x100);
+const AddrRange GicV2::GICD_ISENABLER (0x100, 0x180);
+const AddrRange GicV2::GICD_ICENABLER (0x180, 0x200);
+const AddrRange GicV2::GICD_ISPENDR   (0x200, 0x280);
+const AddrRange GicV2::GICD_ICPENDR   (0x280, 0x300);
+const AddrRange GicV2::GICD_ISACTIVER (0x300, 0x380);
+const AddrRange GicV2::GICD_ICACTIVER (0x380, 0x400);
+const AddrRange GicV2::GICD_IPRIORITYR(0x400, 0x800);
+const AddrRange GicV2::GICD_ITARGETSR (0x800, 0xc00);
+const AddrRange GicV2::GICD_ICFGR     (0xc00, 0xd00);
 
 GicV2::GicV2(const Params *p)
     : BaseGic(p),
+      gicdPIDR(p->gicd_pidr),
+      gicdIIDR(p->gicd_iidr),
+      giccIIDR(p->gicc_iidr),
       distRange(RangeSize(p->dist_addr, DIST_SIZE)),
       cpuRange(RangeSize(p->cpu_addr, p->cpu_size)),
       addrRanges{distRange, cpuRange},
@@ -268,16 +271,16 @@ GicV2::readDistributor(ContextID ctx, Addr daddr, size_t resp_sz)
                 (haveGem5Extensions ? 0x100 : 0x0));
       case GICD_PIDR0:
         //ARM defined DevID
-        return (GICD_400_PIDR_VALUE & 0xFF);
+        return (gicdPIDR & 0xFF);
       case GICD_PIDR1:
-        return ((GICD_400_PIDR_VALUE >> 8) & 0xFF);
+        return ((gicdPIDR >> 8) & 0xFF);
       case GICD_PIDR2:
-        return ((GICD_400_PIDR_VALUE >> 16) & 0xFF);
+        return ((gicdPIDR >> 16) & 0xFF);
       case GICD_PIDR3:
-        return ((GICD_400_PIDR_VALUE >> 24) & 0xFF);
+        return ((gicdPIDR >> 24) & 0xFF);
       case GICD_IIDR:
          /* revision id is resorted to 1 and variant to 0*/
-        return GICD_400_IIDR_VALUE;
+        return gicdIIDR;
       default:
         panic("Tried to read Gic distributor at offset %#x\n", daddr);
         break;
@@ -307,7 +310,7 @@ GicV2::readCpu(ContextID ctx, Addr daddr)
 {
     switch(daddr) {
       case GICC_IIDR:
-        return GICC_400_IIDR_VALUE;
+        return giccIIDR;
       case GICC_CTLR:
         return cpuControl[ctx];
       case GICC_PMR:
@@ -621,6 +624,9 @@ GicV2::writeCpu(ContextID ctx, Addr daddr, uint32_t data)
       case GICC_APR2:
       case GICC_APR3:
         warn("GIC APRn write ignored because not implemented: %#x\n", daddr);
+        break;
+      case GICC_DIR:
+        warn("GIC DIR write ignored because not implemented: %#x\n", daddr);
         break;
       default:
         panic("Tried to write Gic cpu at offset %#x\n", daddr);
@@ -942,6 +948,12 @@ GicV2::postFiq(uint32_t cpu, Tick when)
         ++pendingDelayedInterrupts;
         eventq->schedule(postFiqEvent[cpu], when);
     }
+}
+
+bool
+GicV2::supportsVersion(GicVersion version)
+{
+    return version == GicVersion::GIC_V2;
 }
 
 void

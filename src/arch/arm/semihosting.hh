@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 ARM Limited
+ * Copyright (c) 2018, 2019 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -243,6 +243,7 @@ class ArmSemihosting : public SimObject
         FILE *file;
     };
 
+    std::string filesRootDir;
     std::vector<std::unique_ptr<FileBase>> files;
     FILE *stdin;
     FILE *stdout;
@@ -264,11 +265,11 @@ class ArmSemihosting : public SimObject
 
   private:
     typedef std::pair<uint64_t, SemiErrno> RetErrno;
-    static constexpr RetErrno retError(SemiErrno e) {
+    static  RetErrno retError(SemiErrno e) {
         return RetErrno((uint64_t)-1, e);
     }
 
-    static constexpr RetErrno retOK(uint64_t r) {
+    static  RetErrno retOK(uint64_t r) {
         return RetErrno(r, 0);
     }
 

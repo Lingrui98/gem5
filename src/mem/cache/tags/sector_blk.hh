@@ -49,7 +49,7 @@ class SectorBlk;
  */
 class SectorSubBlk : public CacheBlk
 {
-  private:
+  protected:
     /**
      * Sector block associated to this block.
      */
@@ -102,10 +102,25 @@ class SectorSubBlk : public CacheBlk
     Addr getTag() const;
 
     /**
+     * Set valid bit and inform sector block.
+     */
+    void setValid() override;
+
+    /**
+     * Set secure bit and inform sector block.
+     */
+    void setSecure() override;
+
+    /**
+     * Invalidate the block and inform sector block.
+     */
+    void invalidate() override;
+
+    /**
      * Set member variables when a block insertion occurs. Resets reference
      * count to 1 (the insertion counts as a reference), and touch block if
      * it hadn't been touched previously. Sets the insertion tick to the
-     * current tick. Does not make block valid.
+     * current tick. Marks the block valid.
      *
      * @param tag Block address tag.
      * @param is_secure Whether the block is in secure space or not.
@@ -131,12 +146,24 @@ class SectorBlk : public ReplaceableEntry
 {
   private:
     /**
+     * Counter of the number of valid sub-blocks. The sector is valid if any
+     * of its sub-blocks is valid.
+     */
+    uint8_t _validCounter;
+
+  protected:
+    /**
      * Sector tag value. A sector's tag is the tag of all its sub-blocks.
      */
     Addr _tag;
 
+    /**
+     * Whether sector blk is in secure-space or not.
+     */
+    bool _secureBit;
+
   public:
-    SectorBlk() : ReplaceableEntry(), _tag(MaxAddr) {}
+    SectorBlk();
     SectorBlk(const SectorBlk&) = delete;
     SectorBlk& operator=(const SectorBlk&) = delete;
     ~SectorBlk() {};
@@ -150,6 +177,13 @@ class SectorBlk : public ReplaceableEntry
      * @return True if any of the blocks in the sector is valid.
      */
     bool isValid() const;
+
+    /**
+     * Get the number of sub-blocks that have been validated.
+     *
+     * @return The number of valid sub-blocks.
+     */
+    uint8_t getNumValid() const;
 
     /**
      * Checks that a sector block is secure. A single secure block suffices
@@ -173,6 +207,29 @@ class SectorBlk : public ReplaceableEntry
      * @return The tag value.
      */
     Addr getTag() const;
+
+    /**
+     * Increase the number of valid sub-blocks.
+     */
+    void validateSubBlk();
+
+    /**
+     * Decrease the number of valid sub-blocks.
+     */
+    void invalidateSubBlk();
+
+    /**
+     * Set secure bit.
+     */
+    void setSecure();
+
+    /**
+     * Sets the position of the sub-entries, besides its own.
+     *
+     * @param set The set of this entry and sub-entries.
+     * @param way The way of this entry and sub-entries.
+     */
+    void setPosition(const uint32_t set, const uint32_t way) override;
 };
 
 #endif //__MEM_CACHE_TAGS_SECTOR_BLK_HH__

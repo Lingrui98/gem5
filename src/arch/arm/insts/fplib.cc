@@ -1,5 +1,6 @@
 /*
 * Copyright (c) 2012-2013, 2017-2018 ARM Limited
+* Copyright (c) 2020 Metempsy Technology Consulting
 * All rights reserved
 *
 * The license below extends only to copyright in the software and shall
@@ -37,11 +38,12 @@
 * Authors: Edmund Grimley Evans
 *          Thomas Grocutt
 */
-
 #include <stdint.h>
 
 #include <cassert>
+#include <cmath>
 
+#include "base/logging.hh"
 #include "fplib.hh"
 
 namespace ArmISA
@@ -428,6 +430,8 @@ static inline void
 fp64_unpack(int *sgn, int *exp, uint64_t *mnt, uint64_t x, int mode,
             int *flags)
 {
+
+
     *sgn = x >> (FP64_BITS - 1);
     *exp = FP64_EXP(x);
     *mnt = FP64_MANT(x);
@@ -3740,7 +3744,7 @@ fplibRecipEstimate(uint16_t op, FPSCR &fpscr)
             overflow_to_inf = false;
             break;
           default:
-            assert(0);
+            panic("Unrecognized FP rounding mode");
         }
         result = overflow_to_inf ? fp16_infinity(sgn) : fp16_max_normal(sgn);
         flags |= FPLIB_OFC | FPLIB_IXC;
@@ -3802,7 +3806,7 @@ fplibRecipEstimate(uint32_t op, FPSCR &fpscr)
             overflow_to_inf = false;
             break;
           default:
-            assert(0);
+            panic("Unrecognized FP rounding mode");
         }
         result = overflow_to_inf ? fp32_infinity(sgn) : fp32_max_normal(sgn);
         flags |= FPLIB_OFC | FPLIB_IXC;
@@ -3864,7 +3868,7 @@ fplibRecipEstimate(uint64_t op, FPSCR &fpscr)
             overflow_to_inf = false;
             break;
           default:
-            assert(0);
+            panic("Unrecognized FP rounding mode");
         }
         result = overflow_to_inf ? fp64_infinity(sgn) : fp64_max_normal(sgn);
         flags |= FPLIB_OFC | FPLIB_IXC;
@@ -4108,7 +4112,7 @@ fplibRoundInt(uint16_t op, FPRounding rounding, bool exact, FPSCR &fpscr)
             x += err >> 1;
             break;
           default:
-            assert(0);
+            panic("Unrecognized FP rounding mode");
         }
 
         if (x == 0) {
@@ -4173,7 +4177,7 @@ fplibRoundInt(uint32_t op, FPRounding rounding, bool exact, FPSCR &fpscr)
             x += err >> 1;
             break;
           default:
-            assert(0);
+            panic("Unrecognized FP rounding mode");
         }
 
         if (x == 0) {
@@ -4238,7 +4242,7 @@ fplibRoundInt(uint64_t op, FPRounding rounding, bool exact, FPSCR &fpscr)
             x += err >> 1;
             break;
           default:
-            assert(0);
+            panic("Unrecognized FP rounding mode");
         }
 
         if (x == 0) {
@@ -4575,7 +4579,7 @@ FPToFixed_64(int sgn, int exp, uint64_t mnt, bool u, FPRounding rounding,
         x += err >> 1;
         break;
       default:
-        assert(0);
+        panic("Unrecognized FP rounding mode");
     }
 
     if (u ? sgn && x : x > (1ULL << (FP64_BITS - 1)) - !sgn) {
@@ -4733,6 +4737,71 @@ fplibFPToFixed(uint64_t op, int fbits, bool u, FPRounding rounding, FPSCR &fpscr
 
     set_fpscr0(fpscr, flags);
 
+    return result;
+}
+
+uint32_t
+fplibFPToFixedJS(uint64_t op, FPSCR &fpscr, bool is64, uint8_t& nz)
+{
+    int flags = 0;
+    uint32_t result;
+    bool Z = true;
+
+    uint32_t sgn = bits(op, 63);
+    int32_t exp  = bits(op, 62, 52);
+    uint64_t mnt = bits(op, 51, 0);
+
+    if (exp == 0) {
+        if (mnt != 0) {
+           if (fpscr.fz) {
+                flags |= FPLIB_IDC;
+            } else {
+                flags |= FPLIB_IXC;
+                Z = 0;
+            }
+        }
+        result = 0;
+    } else if (exp == 0x7ff) {
+        flags |= FPLIB_IOC;
+        result = 0;
+        Z = 0;
+    } else {
+        mnt |= 1ULL << FP64_MANT_BITS;
+        int mnt_shft = exp - FP64_EXP_BIAS - 52;
+        bool err = true;
+
+        if (abs(mnt_shft) >= FP64_BITS) {
+            result = 0;
+            Z = 0;
+        } else if (mnt_shft >= 0) {
+            result = lsl64(mnt, mnt_shft);
+        } else if (mnt_shft < 0) {
+            err = lsl64(mnt, mnt_shft+FP64_BITS) != 0;
+            result = lsr64(mnt, abs(mnt_shft));
+        }
+        uint64_t max_result = (1UL << (FP32_BITS - 1)) -!sgn;
+        if ((exp - FP64_EXP_BIAS) > 31 || result > max_result) {
+                flags |= FPLIB_IOC;
+                Z = false;
+        } else if (err) {
+                flags |= FPLIB_IXC;
+                Z = false;
+        }
+        result =  sgn ? -result : result;
+    }
+    if (sgn == 1 && result == 0)
+        Z = false;
+
+    if (is64) {
+        nz = Z? 0x1: 0x0;
+    } else {
+        fpscr.n = 0;
+        fpscr.z = (int)Z;
+        fpscr.c = 0;
+        fpscr.v = 0;
+    }
+
+    set_fpscr0(fpscr, flags);
     return result;
 }
 

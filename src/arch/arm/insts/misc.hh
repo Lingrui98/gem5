@@ -179,6 +179,20 @@ class RegRegOp : public PredOp
             Addr pc, const SymbolTable *symtab) const override;
 };
 
+class RegOp : public PredOp
+{
+  protected:
+    IntRegIndex dest;
+
+    RegOp(const char *mnem, ExtMachInst _machInst, OpClass __opClass,
+             IntRegIndex _dest) :
+        PredOp(mnem, _machInst, __opClass), dest(_dest)
+    {}
+
+    std::string generateDisassembly(
+            Addr pc, const SymbolTable *symtab) const override;
+};
+
 class RegImmRegOp : public PredOp
 {
   protected:
@@ -372,6 +386,48 @@ class UnknownOp : public PredOp
 
     std::string generateDisassembly(
             Addr pc, const SymbolTable *symtab) const override;
+};
+
+/**
+ * Certain mrc/mcr instructions act as nops or flush the pipe based on what
+ * register the instruction is trying to access. This inst/class exists so that
+ * we can still check for hyp traps, as the normal nop instruction
+ * does not.
+ */
+class McrMrcMiscInst : public ArmStaticInst
+{
+  protected:
+    uint64_t iss;
+    MiscRegIndex miscReg;
+
+  public:
+    McrMrcMiscInst(const char *_mnemonic, ExtMachInst _machInst,
+                   uint64_t _iss, MiscRegIndex _miscReg);
+
+    Fault execute(ExecContext *xc,
+                  Trace::InstRecord *traceData) const override;
+
+    std::string generateDisassembly(
+            Addr pc, const SymbolTable *symtab) const override;
+
+};
+
+/**
+ * This class is also used for IMPLEMENTATION DEFINED registers, whose mcr/mrc
+ * behaviour is trappable even for unimplemented registers.
+ */
+class McrMrcImplDefined : public McrMrcMiscInst
+{
+  public:
+    McrMrcImplDefined(const char *_mnemonic, ExtMachInst _machInst,
+                      uint64_t _iss, MiscRegIndex _miscReg);
+
+    Fault execute(ExecContext *xc,
+                  Trace::InstRecord *traceData) const override;
+
+    std::string generateDisassembly(
+            Addr pc, const SymbolTable *symtab) const override;
+
 };
 
 #endif

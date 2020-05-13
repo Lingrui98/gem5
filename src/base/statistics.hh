@@ -1,4 +1,16 @@
 /*
+ * Copyright (c) 2019 Arm Limited
+ * All rights reserved.
+ *
+ * The license below extends only to copyright in the software and shall
+ * not be construed as granting a license to any other intellectual
+ * property including but not limited to intellectual property relating
+ * to a hardware implementation of the functionality of the software
+ * licensed hereunder.  You may use the software subject to the license
+ * terms below provided that you ensure that this notice is replicated
+ * unmodified and in its entirety in all distributions of the software,
+ * modified or unmodified, in source code or in binary form.
+ *
  * Copyright (c) 2003-2005 The Regents of The University of Michigan
  * Copyright (c) 2017, Centre National de la Recherche Scientifique
  * All rights reserved.
@@ -63,6 +75,7 @@
 #include <string>
 #include <vector>
 
+#include "base/stats/group.hh"
 #include "base/stats/info.hh"
 #include "base/stats/output.hh"
 #include "base/stats/types.hh"
@@ -172,9 +185,12 @@ struct StorageParams
 
 class InfoAccess
 {
+  private:
+    Info *_info;
+
   protected:
     /** Set up an info class for this statistic */
-    void setInfo(Info *info);
+    void setInfo(Group *parent, Info *info);
     /** Save Storage class parameters if any */
     void setParams(const StorageParams *params);
     /** Save Storage class parameters if any */
@@ -186,6 +202,9 @@ class InfoAccess
     const Info *info() const;
 
   public:
+    InfoAccess()
+        : _info(nullptr) {};
+
     /**
      * Reset the stat to the default state.
      */
@@ -228,21 +247,27 @@ class DataWrap : public InfoAccess
         return safe_cast<const Info *>(InfoAccess::info());
     }
 
-  protected:
-    /**
-     * Copy constructor, copies are not allowed.
-     */
-    DataWrap(const DataWrap &stat) = delete;
-
-    /**
-     * Can't copy stats.
-     */
-    void operator=(const DataWrap &) {}
-
   public:
-    DataWrap()
+    DataWrap() = delete;
+    DataWrap(const DataWrap &) = delete;
+    DataWrap &operator=(const DataWrap &) = delete;
+
+
+    DataWrap(Group *parent, const char *name, const char *desc)
     {
-        this->setInfo(new Info(self()));
+        auto info = new Info(self());
+        this->setInfo(parent, info);
+
+        if (parent)
+            parent->addStat(info);
+
+        if (name) {
+            info->setName(parent, name);
+            info->flags.set(display);
+        }
+
+        if (desc)
+            info->desc = desc;
     }
 
     /**
@@ -335,13 +360,9 @@ class DataWrapVec : public DataWrap<Derived, InfoProxyType>
   public:
     typedef InfoProxyType<Derived> Info;
 
-    DataWrapVec()
-    {}
-
-    DataWrapVec(const DataWrapVec &ref)
-    {}
-
-    void operator=(const DataWrapVec &)
+    DataWrapVec(Group *parent = nullptr, const char *name = nullptr,
+                const char *desc = nullptr)
+        : DataWrap<Derived, InfoProxyType>(parent, name, desc)
     {}
 
     // The following functions are specific to vectors.  If you use them
@@ -419,6 +440,11 @@ class DataWrapVec2d : public DataWrapVec<Derived, InfoProxyType>
 {
   public:
     typedef InfoProxyType<Derived> Info;
+
+    DataWrapVec2d(Group *parent, const char *name, const char *desc)
+        : DataWrapVec<Derived, InfoProxyType>(parent, name, desc)
+    {
+    }
 
     /**
      * @warning This makes the assumption that if you're gonna subnames a 2d
@@ -677,7 +703,9 @@ class ScalarBase : public DataWrap<Derived, ScalarInfoProxy>
     Counter value() const { return data()->value(); }
 
   public:
-    ScalarBase()
+    ScalarBase(Group *parent = nullptr, const char *name = nullptr,
+               const char *desc = nullptr)
+        : DataWrap<Derived, ScalarInfoProxy>(parent, name, desc)
     {
         this->doInit();
     }
@@ -807,7 +835,12 @@ class ValueBase : public DataWrap<Derived, ScalarInfoProxy>
     ProxyInfo *proxy;
 
   public:
-    ValueBase() : proxy(NULL) { }
+    ValueBase(Group *parent, const char *name, const char *desc)
+        : DataWrap<Derived, ScalarInfoProxy>(parent, name, desc),
+          proxy(NULL)
+    {
+    }
+
     ~ValueBase() { if (proxy) delete proxy; }
 
     template <class T>
@@ -1095,8 +1128,9 @@ class VectorBase : public DataWrapVec<Derived, VectorInfoProxy>
     }
 
   public:
-    VectorBase()
-        : storage(nullptr), _size(0)
+    VectorBase(Group *parent, const char *name, const char *desc)
+        : DataWrapVec<Derived, VectorInfoProxy>(parent, name, desc),
+          storage(nullptr), _size(0)
     {}
 
     ~VectorBase()
@@ -1235,8 +1269,9 @@ class Vector2dBase : public DataWrapVec2d<Derived, Vector2dInfoProxy>
     const Storage *data(off_type index) const { return &storage[index]; }
 
   public:
-    Vector2dBase()
-        : x(0), y(0), _size(0), storage(nullptr)
+    Vector2dBase(Group *parent, const char *name, const char *desc)
+        : DataWrapVec2d<Derived, Vector2dInfoProxy>(parent, name, desc),
+          x(0), y(0), _size(0), storage(nullptr)
     {}
 
     ~Vector2dBase()
@@ -1294,12 +1329,6 @@ class Vector2dBase : public DataWrapVec2d<Derived, Vector2dInfoProxy>
     zero() const
     {
         return data(0)->zero();
-#if 0
-        for (off_type i = 0; i < size(); ++i)
-            if (!data(i)->zero())
-                return false;
-        return true;
-#endif
     }
 
     /**
@@ -1695,9 +1724,8 @@ class SampleStor
     void
     sample(Counter val, int number)
     {
-        Counter value = val * number;
-        sum += value;
-        squares += value * value;
+        sum += val * number;
+        squares += val * val * number;
         samples += number;
     }
 
@@ -1772,9 +1800,8 @@ class AvgSampleStor
     void
     sample(Counter val, int number)
     {
-        Counter value = val * number;
-        sum += value;
-        squares += value * value;
+        sum += val * number;
+        squares += val * val * number;
     }
 
     /**
@@ -1857,7 +1884,10 @@ class DistBase : public DataWrap<Derived, DistInfoProxy>
     }
 
   public:
-    DistBase() { }
+    DistBase(Group *parent, const char *name, const char *desc)
+        : DataWrap<Derived, DistInfoProxy>(parent, name, desc)
+    {
+    }
 
     /**
      * Add a value to the distribtion n times. Calls sample on the storage
@@ -1951,8 +1981,9 @@ class VectorDistBase : public DataWrapVec<Derived, VectorDistInfoProxy>
     }
 
   public:
-    VectorDistBase()
-        : storage(NULL)
+    VectorDistBase(Group *parent, const char *name, const char *desc)
+        : DataWrapVec<Derived, VectorDistInfoProxy>(parent, name, desc),
+          storage(NULL)
     {}
 
     ~VectorDistBase()
@@ -2090,6 +2121,8 @@ class Node
      *
      */
     virtual std::string str() const = 0;
+
+    virtual ~Node() {};
 };
 
 /** Shared pointer to a function Node. */
@@ -2320,7 +2353,7 @@ class BinaryNode : public Node
     BinaryNode(NodePtr &a, NodePtr &b) : l(a), r(b) {}
 
     const VResult &
-    result() const
+    result() const override
     {
         Op op;
         const VResult &lvec = l->result();
@@ -2352,7 +2385,7 @@ class BinaryNode : public Node
     }
 
     Result
-    total() const
+    total() const override
     {
         const VResult &vec = this->result();
         const VResult &lvec = l->result();
@@ -2384,7 +2417,7 @@ class BinaryNode : public Node
     }
 
     size_type
-    size() const
+    size() const override
     {
         size_type ls = l->size();
         size_type rs = r->size();
@@ -2399,7 +2432,7 @@ class BinaryNode : public Node
     }
 
     std::string
-    str() const
+    str() const override
     {
         return csprintf("(%s %s %s)", l->str(), OpString<Op>::str(), r->str());
     }
@@ -2476,6 +2509,12 @@ class Scalar : public ScalarBase<Scalar, StatStor>
 {
   public:
     using ScalarBase<Scalar, StatStor>::operator=;
+
+    Scalar(Group *parent = nullptr, const char *name = nullptr,
+           const char *desc = nullptr)
+        : ScalarBase<Scalar, StatStor>(parent, name, desc)
+    {
+    }
 };
 
 /**
@@ -2486,10 +2525,22 @@ class Average : public ScalarBase<Average, AvgStor>
 {
   public:
     using ScalarBase<Average, AvgStor>::operator=;
+
+    Average(Group *parent = nullptr, const char *name = nullptr,
+            const char *desc = nullptr)
+        : ScalarBase<Average, AvgStor>(parent, name, desc)
+    {
+    }
 };
 
 class Value : public ValueBase<Value>
 {
+  public:
+    Value(Group *parent = nullptr, const char *name = nullptr,
+          const char *desc = nullptr)
+        : ValueBase<Value>(parent, name, desc)
+    {
+    }
 };
 
 /**
@@ -2498,6 +2549,12 @@ class Value : public ValueBase<Value>
  */
 class Vector : public VectorBase<Vector, StatStor>
 {
+  public:
+    Vector(Group *parent = nullptr, const char *name = nullptr,
+           const char *desc = nullptr)
+        : VectorBase<Vector, StatStor>(parent, name, desc)
+    {
+    }
 };
 
 /**
@@ -2506,6 +2563,12 @@ class Vector : public VectorBase<Vector, StatStor>
  */
 class AverageVector : public VectorBase<AverageVector, AvgStor>
 {
+  public:
+    AverageVector(Group *parent = nullptr, const char *name = nullptr,
+                  const char *desc = nullptr)
+        : VectorBase<AverageVector, AvgStor>(parent, name, desc)
+    {
+    }
 };
 
 /**
@@ -2514,6 +2577,12 @@ class AverageVector : public VectorBase<AverageVector, AvgStor>
  */
 class Vector2d : public Vector2dBase<Vector2d, StatStor>
 {
+  public:
+    Vector2d(Group *parent = nullptr, const char *name = nullptr,
+             const char *desc = nullptr)
+        : Vector2dBase<Vector2d, StatStor>(parent, name, desc)
+    {
+    }
 };
 
 /**
@@ -2523,6 +2592,12 @@ class Vector2d : public Vector2dBase<Vector2d, StatStor>
 class Distribution : public DistBase<Distribution, DistStor>
 {
   public:
+    Distribution(Group *parent = nullptr, const char *name = nullptr,
+                 const char *desc = nullptr)
+        : DistBase<Distribution, DistStor>(parent, name, desc)
+    {
+    }
+
     /**
      * Set the parameters of this distribution. @sa DistStor::Params
      * @param min The minimum value of the distribution.
@@ -2537,6 +2612,9 @@ class Distribution : public DistBase<Distribution, DistStor>
         params->min = min;
         params->max = max;
         params->bucket_size = bkt;
+        // Division by zero is especially serious in an Aarch64 host,
+        // where it gets rounded to allocate 32GiB RAM.
+        assert(bkt > 0);
         params->buckets = (size_type)ceil((max - min + 1.0) / bkt);
         this->setParams(params);
         this->doInit();
@@ -2551,6 +2629,12 @@ class Distribution : public DistBase<Distribution, DistStor>
 class Histogram : public DistBase<Histogram, HistStor>
 {
   public:
+    Histogram(Group *parent = nullptr, const char *name = nullptr,
+              const char *desc = nullptr)
+        : DistBase<Histogram, HistStor>(parent, name, desc)
+    {
+    }
+
     /**
      * Set the parameters of this histogram. @sa HistStor::Params
      * @param size The number of buckets in the histogram
@@ -2577,7 +2661,9 @@ class StandardDeviation : public DistBase<StandardDeviation, SampleStor>
     /**
      * Construct and initialize this distribution.
      */
-    StandardDeviation()
+    StandardDeviation(Group *parent = nullptr, const char *name = nullptr,
+                      const char *desc = nullptr)
+        : DistBase<StandardDeviation, SampleStor>(parent, name, desc)
     {
         SampleStor::Params *params = new SampleStor::Params;
         this->doInit();
@@ -2595,7 +2681,9 @@ class AverageDeviation : public DistBase<AverageDeviation, AvgSampleStor>
     /**
      * Construct and initialize this distribution.
      */
-    AverageDeviation()
+    AverageDeviation(Group *parent = nullptr, const char *name = nullptr,
+                     const char *desc = nullptr)
+        : DistBase<AverageDeviation, AvgSampleStor>(parent, name, desc)
     {
         AvgSampleStor::Params *params = new AvgSampleStor::Params;
         this->doInit();
@@ -2610,6 +2698,12 @@ class AverageDeviation : public DistBase<AverageDeviation, AvgSampleStor>
 class VectorDistribution : public VectorDistBase<VectorDistribution, DistStor>
 {
   public:
+    VectorDistribution(Group *parent = nullptr, const char *name = nullptr,
+                       const char *desc = nullptr)
+        : VectorDistBase<VectorDistribution, DistStor>(parent, name, desc)
+    {
+    }
+
     /**
      * Initialize storage and parameters for this distribution.
      * @param size The size of the vector (the number of distributions).
@@ -2640,6 +2734,13 @@ class VectorStandardDeviation
     : public VectorDistBase<VectorStandardDeviation, SampleStor>
 {
   public:
+    VectorStandardDeviation(Group *parent = nullptr, const char *name = nullptr,
+                            const char *desc = nullptr)
+        : VectorDistBase<VectorStandardDeviation, SampleStor>(parent, name,
+                                                              desc)
+    {
+    }
+
     /**
      * Initialize storage for this distribution.
      * @param size The size of the vector.
@@ -2663,6 +2764,13 @@ class VectorAverageDeviation
     : public VectorDistBase<VectorAverageDeviation, AvgSampleStor>
 {
   public:
+    VectorAverageDeviation(Group *parent = nullptr, const char *name = nullptr,
+                           const char *desc = nullptr)
+        : VectorDistBase<VectorAverageDeviation, AvgSampleStor>(parent, name,
+                                                                desc)
+    {
+    }
+
     /**
      * Initialize storage for this distribution.
      * @param size The size of the vector.
@@ -2754,7 +2862,10 @@ class SparseHistBase : public DataWrap<Derived, SparseHistInfoProxy>
     }
 
   public:
-    SparseHistBase() { }
+    SparseHistBase(Group *parent, const char *name, const char *desc)
+        : DataWrap<Derived, SparseHistInfoProxy>(parent, name, desc)
+    {
+    }
 
     /**
      * Add a value to the distribtion n times. Calls sample on the storage
@@ -2871,6 +2982,12 @@ class SparseHistStor
 class SparseHistogram : public SparseHistBase<SparseHistogram, SparseHistStor>
 {
   public:
+    SparseHistogram(Group *parent = nullptr, const char *name = nullptr,
+                    const char *desc = nullptr)
+        : SparseHistBase<SparseHistogram, SparseHistStor>(parent, name, desc)
+    {
+    }
+
     /**
      * Set the parameters of this histogram. @sa HistStor::Params
      * @param size The number of buckets in the histogram
@@ -2903,21 +3020,25 @@ class Formula : public DataWrapVec<Formula, FormulaInfoProxy>
     /**
      * Create and initialize thie formula, and register it with the database.
      */
-    Formula();
+    Formula(Group *parent = nullptr, const char *name = nullptr,
+            const char *desc = nullptr);
 
-    /**
-     * Create a formula with the given root node, register it with the
-     * database.
-     * @param r The root of the expression tree.
-     */
-    Formula(Temp r);
+    Formula(Group *parent, const char *name, const char *desc,
+            const Temp &r);
 
     /**
      * Set an unitialized Formula to the given root.
      * @param r The root of the expression tree.
      * @return a reference to this formula.
      */
-    const Formula &operator=(Temp r);
+    const Formula &operator=(const Temp &r);
+
+    template<typename T>
+    const Formula &operator=(const T &v)
+    {
+        *this = Temp(v);
+        return *this;
+    }
 
     /**
      * Add the given tree to the existing one.

@@ -43,12 +43,13 @@
 
 #include <memory>
 
+#include "base/logging.hh"
 #include "base/output.hh"
 #include "base/trace.hh"
 #include "debug/MemCheckerMonitor.hh"
 
 MemCheckerMonitor::MemCheckerMonitor(Params* params)
-    : MemObject(params),
+    : SimObject(params),
       masterPort(name() + "-master", *this),
       slavePort(name() + "-slave", *this),
       warnOnly(params->warn_only),
@@ -72,23 +73,15 @@ MemCheckerMonitor::init()
         fatal("Communication monitor is not connected on both sides.\n");
 }
 
-BaseMasterPort&
-MemCheckerMonitor::getMasterPort(const std::string& if_name, PortID idx)
+Port &
+MemCheckerMonitor::getPort(const std::string &if_name, PortID idx)
 {
     if (if_name == "master" || if_name == "mem_side") {
         return masterPort;
-    } else {
-        return MemObject::getMasterPort(if_name, idx);
-    }
-}
-
-BaseSlavePort&
-MemCheckerMonitor::getSlavePort(const std::string& if_name, PortID idx)
-{
-    if (if_name == "slave" || if_name == "cpu_side") {
+    } else if (if_name == "slave" || if_name == "cpu_side") {
         return slavePort;
     } else {
-        return MemObject::getSlavePort(if_name, idx);
+        return SimObject::getPort(if_name, idx);
     }
 }
 
@@ -129,15 +122,13 @@ MemCheckerMonitor::recvFunctionalSnoop(PacketPtr pkt)
 Tick
 MemCheckerMonitor::recvAtomic(PacketPtr pkt)
 {
-    assert(false && "Atomic not supported");
-    return masterPort.sendAtomic(pkt);
+    panic("Atomic not supported");
 }
 
 Tick
 MemCheckerMonitor::recvAtomicSnoop(PacketPtr pkt)
 {
-    assert(false && "Atomic not supported");
-    return slavePort.sendAtomicSnoop(pkt);
+    panic("Atomic not supported");
 }
 
 bool

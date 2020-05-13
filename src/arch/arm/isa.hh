@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2010, 2012-2018 ARM Limited
+ * Copyright (c) 2010, 2012-2020 ARM Limited
  * All rights reserved
  *
  * The license below extends only to copyright in the software and shall
@@ -49,6 +49,7 @@
 #include "arch/arm/system.hh"
 #include "arch/arm/tlb.hh"
 #include "arch/arm/types.hh"
+#include "arch/generic/isa.hh"
 #include "arch/generic/traits.hh"
 #include "debug/Checkpoint.hh"
 #include "enums/VecRegRenameMode.hh"
@@ -63,7 +64,7 @@ class EventManager;
 
 namespace ArmISA
 {
-    class ISA : public SimObject
+    class ISA : public BaseISA
     {
       protected:
         // Parent system
@@ -82,6 +83,9 @@ namespace ArmISA
         // Generic timer interface belonging to this ISA
         std::unique_ptr<BaseISADevice> timer;
 
+        // GICv3 CPU interface belonging to this ISA
+        std::unique_ptr<BaseISADevice> gicv3CpuInterface;
+
         // Cached copies of system-level properties
         bool highestELIs64;
         bool haveSecurity;
@@ -89,13 +93,22 @@ namespace ArmISA
         bool haveVirtualization;
         bool haveCrypto;
         bool haveLargeAsid64;
+        bool haveGICv3CPUInterface;
         uint8_t physAddrRange;
+        bool haveSVE;
+        bool haveLSE;
+        bool havePAN;
+
+        /** SVE vector length in quadwords */
+        unsigned sveVL;
 
         /**
          * If true, accesses to IMPLEMENTATION DEFINED registers are treated
          * as NOP hence not causing UNDEFINED INSTRUCTION.
          */
         bool impdefAsNop;
+
+        bool afterStartup;
 
         /** MiscReg metadata **/
         struct MiscRegLUTEntry {
@@ -171,6 +184,10 @@ namespace ArmISA
                 info[MISCREG_BANKED] = v;
                 return *this;
             }
+            chain banked64(bool v = true) const {
+                info[MISCREG_BANKED64] = v;
+                return *this;
+            }
             chain bankedChild(bool v = true) const {
                 info[MISCREG_BANKED_CHILD] = v;
                 return *this;
@@ -234,11 +251,26 @@ namespace ArmISA
                 privNonSecureRead(v);
                 return *this;
             }
+            chain hypE2HRead(bool v = true) const {
+                info[MISCREG_HYP_E2H_RD] = v;
+                return *this;
+            }
+            chain hypE2HWrite(bool v = true) const {
+                info[MISCREG_HYP_E2H_WR] = v;
+                return *this;
+            }
+            chain hypE2H(bool v = true) const {
+                hypE2HRead(v);
+                hypE2HWrite(v);
+                return *this;
+            }
             chain hypRead(bool v = true) const {
+                hypE2HRead(v);
                 info[MISCREG_HYP_RD] = v;
                 return *this;
             }
             chain hypWrite(bool v = true) const {
+                hypE2HWrite(v);
                 info[MISCREG_HYP_WR] = v;
                 return *this;
             }
@@ -247,19 +279,36 @@ namespace ArmISA
                 hypWrite(v);
                 return *this;
             }
+            chain monE2HRead(bool v = true) const {
+                info[MISCREG_MON_E2H_RD] = v;
+                return *this;
+            }
+            chain monE2HWrite(bool v = true) const {
+                info[MISCREG_MON_E2H_WR] = v;
+                return *this;
+            }
+            chain monE2H(bool v = true) const {
+                monE2HRead(v);
+                monE2HWrite(v);
+                return *this;
+            }
             chain monSecureRead(bool v = true) const {
+                monE2HRead(v);
                 info[MISCREG_MON_NS0_RD] = v;
                 return *this;
             }
             chain monSecureWrite(bool v = true) const {
+                monE2HWrite(v);
                 info[MISCREG_MON_NS0_WR] = v;
                 return *this;
             }
             chain monNonSecureRead(bool v = true) const {
+                monE2HRead(v);
                 info[MISCREG_MON_NS1_RD] = v;
                 return *this;
             }
             chain monNonSecureWrite(bool v = true) const {
+                monE2HWrite(v);
                 info[MISCREG_MON_NS1_WR] = v;
                 return *this;
             }
@@ -341,6 +390,7 @@ namespace ArmISA
                 user(0);
                 return *this;
             }
+            chain highest(ArmSystem *const sys) const;
             MiscRegLUTEntryInitializer(struct MiscRegLUTEntry &e,
                                        std::bitset<NUM_MISCREG_INFOS> &i)
               : entry(e),
@@ -358,7 +408,7 @@ namespace ArmISA
 
         void initializeMiscRegMetadata();
 
-        MiscReg miscRegs[NumMiscRegs];
+        RegVal miscRegs[NumMiscRegs];
         const IntRegIndex *intRegMap;
 
         void
@@ -400,6 +450,7 @@ namespace ArmISA
         }
 
         BaseISADevice &getGenericTimer(ThreadContext *tc);
+        BaseISADevice &getGICv3CPUInterface(ThreadContext *tc);
 
 
       private:
@@ -423,10 +474,10 @@ namespace ArmISA
         void initID64(const ArmISAParams *p);
 
       public:
-        MiscReg readMiscRegNoEffect(int misc_reg) const;
-        MiscReg readMiscReg(int misc_reg, ThreadContext *tc);
-        void setMiscRegNoEffect(int misc_reg, const MiscReg &val);
-        void setMiscReg(int misc_reg, const MiscReg &val, ThreadContext *tc);
+        RegVal readMiscRegNoEffect(int misc_reg) const;
+        RegVal readMiscReg(int misc_reg, ThreadContext *tc);
+        void setMiscRegNoEffect(int misc_reg, RegVal val);
+        void setMiscReg(int misc_reg, RegVal val, ThreadContext *tc);
 
         RegId
         flattenRegId(const RegId& regId) const
@@ -439,7 +490,11 @@ namespace ArmISA
               case VecRegClass:
                 return RegId(VecRegClass, flattenVecIndex(regId.index()));
               case VecElemClass:
-                return RegId(VecElemClass, flattenVecElemIndex(regId.index()));
+                return RegId(VecElemClass, flattenVecElemIndex(regId.index()),
+                             regId.elemIndex());
+              case VecPredRegClass:
+                return RegId(VecPredRegClass,
+                             flattenVecPredIndex(regId.index()));
               case CCRegClass:
                 return RegId(CCRegClass, flattenCCIndex(regId.index()));
               case MiscRegClass:
@@ -496,6 +551,13 @@ namespace ArmISA
 
         int
         flattenVecElemIndex(int reg) const
+        {
+            assert(reg >= 0);
+            return reg;
+        }
+
+        int
+        flattenVecPredIndex(int reg) const
         {
             assert(reg >= 0);
             return reg;
@@ -618,9 +680,23 @@ namespace ArmISA
                                      inSecureState(miscRegs[MISCREG_SCR],
                                                    miscRegs[MISCREG_CPSR]);
                     flat_idx += secureReg ? 2 : 1;
+                } else {
+                    flat_idx = snsBankedIndex64((MiscRegIndex)reg,
+                        !inSecureState(miscRegs[MISCREG_SCR],
+                                       miscRegs[MISCREG_CPSR]));
                 }
             }
             return flat_idx;
+        }
+
+        int
+        snsBankedIndex64(MiscRegIndex reg, bool ns) const
+        {
+            int reg_as_int = static_cast<int>(reg);
+            if (miscRegInfo[reg][MISCREG_BANKED64]) {
+                reg_as_int += (haveSecurity && !ns) ? 2 : 1;
+            }
+            return reg_as_int;
         }
 
         std::pair<int,int> getMiscIndices(int misc_reg) const
@@ -644,36 +720,42 @@ namespace ArmISA
             return std::make_pair(lower, upper);
         }
 
-        void serialize(CheckpointOut &cp) const
+        unsigned getCurSveVecLenInBits(ThreadContext *tc) const;
+
+        unsigned getCurSveVecLenInBitsAtReset() const { return sveVL * 128; }
+
+        static void zeroSveVecRegUpperPart(VecRegContainer &vc,
+                                           unsigned eCount);
+
+        void
+        serialize(CheckpointOut &cp) const
         {
             DPRINTF(Checkpoint, "Serializing Arm Misc Registers\n");
             SERIALIZE_ARRAY(miscRegs, NUM_PHYS_MISCREGS);
-
-            SERIALIZE_SCALAR(highestELIs64);
-            SERIALIZE_SCALAR(haveSecurity);
-            SERIALIZE_SCALAR(haveLPAE);
-            SERIALIZE_SCALAR(haveVirtualization);
-            SERIALIZE_SCALAR(haveLargeAsid64);
-            SERIALIZE_SCALAR(physAddrRange);
         }
-        void unserialize(CheckpointIn &cp)
+
+        void
+        unserialize(CheckpointIn &cp)
         {
             DPRINTF(Checkpoint, "Unserializing Arm Misc Registers\n");
             UNSERIALIZE_ARRAY(miscRegs, NUM_PHYS_MISCREGS);
             CPSR tmp_cpsr = miscRegs[MISCREG_CPSR];
             updateRegMap(tmp_cpsr);
-
-            UNSERIALIZE_SCALAR(highestELIs64);
-            UNSERIALIZE_SCALAR(haveSecurity);
-            UNSERIALIZE_SCALAR(haveLPAE);
-            UNSERIALIZE_SCALAR(haveVirtualization);
-            UNSERIALIZE_SCALAR(haveLargeAsid64);
-            UNSERIALIZE_SCALAR(physAddrRange);
         }
 
         void startup(ThreadContext *tc);
 
         Enums::DecoderFlavour decoderFlavour() const { return _decoderFlavour; }
+
+        /** Getter for haveGICv3CPUInterface */
+        bool haveGICv3CpuIfc() const
+        {
+            // haveGICv3CPUInterface is initialized at startup time, hence
+            // trying to read its value before the startup stage will lead
+            // to an error
+            assert(afterStartup);
+            return haveGICv3CPUInterface;
+        }
 
         Enums::VecRegRenameMode
         vecRegRenameMode() const
@@ -682,7 +764,7 @@ namespace ArmISA
         }
 
         /// Explicitly import the otherwise hidden startup
-        using SimObject::startup;
+        using BaseISA::startup;
 
         typedef ArmISAParams Params;
 
@@ -693,15 +775,28 @@ namespace ArmISA
 }
 
 template<>
-struct initRenameMode<ArmISA::ISA>
+struct RenameMode<ArmISA::ISA>
 {
-    static Enums::VecRegRenameMode mode(const ArmISA::ISA* isa)
+    static Enums::VecRegRenameMode
+    init(const ArmISA::ISA* isa)
     {
         return isa->vecRegRenameMode();
     }
-    static bool equals(const ArmISA::ISA* isa1, const ArmISA::ISA* isa2)
+
+    static Enums::VecRegRenameMode
+    mode(const ArmISA::PCState& pc)
     {
-        return mode(isa1) == mode(isa2);
+        if (pc.aarch64()) {
+            return Enums::Full;
+        } else {
+            return Enums::Elem;
+        }
+    }
+
+    static bool
+    equalsInit(const ArmISA::ISA* isa1, const ArmISA::ISA* isa2)
+    {
+        return init(isa1) == init(isa2);
     }
 };
 

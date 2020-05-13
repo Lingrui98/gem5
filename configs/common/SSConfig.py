@@ -1,3 +1,8 @@
+from m5.params import *
+from m5.defines import buildEnv
+from m5.proxy import *
+
+#from BranchPredictor import *
 def modifyO3CPUConfig(options, cpu):
     print('modifying O3 cpu config')
     if options.num_ROB:
