@@ -15,6 +15,7 @@ import argparse
 
 numIQ = 128
 
+#debug_flag = 'PAthPerceptron'
 debug_flag = 'MYperceptron'
 
 target_function = 'all_function_spec.txt'
@@ -27,7 +28,7 @@ arch = 'RISCV'
 default_params = {\
     'size': 256,
     'index': 'MODULO',
-    'his_len': 16,
+    'his_len': 32,
     'lr': 1,
     'pseudo-tag': 0,
     'dyn-thres': 0,
@@ -44,40 +45,28 @@ def out_dir_gen(opt):
     else:
         outdir = outdir + '_size' + str(default_params['size'])
 
-    if opt.bp_index_type:
-        outdir = outdir + '_index' + str(opt.bp_index_type)
-    else:
-        outdir = outdir + '_index' + str(default_params['index'])
-
     if opt.bp_history_len:
         outdir = outdir + '_his' + str(opt.bp_history_len)
     else:
         outdir = outdir + '_his' + str(default_params['his_len'])
 
-    if opt.bp_learning_rate:
+    if opt.bp_index_type and opt.bp_index_type != default_params['index']:
+        outdir = outdir + '_index' + str(opt.bp_index_type)
+
+    if opt.bp_learning_rate and opt.bp_learning_rate != default_params['lr']:
         outdir = outdir + '_lr' + str(opt.bp_learning_rate)
-    else:
-        outdir = outdir + '_lr' + str(default_params['lr'])
 
-    if opt.bp_pseudo_tagging:
+    if opt.bp_pseudo_tagging and opt.bp_pseudo_tagging != 0:
         outdir = outdir + '_pseudotag' + str(opt.bp_pseudo_tagging)
-    else:
-        outdir = outdir + '_pseudotag' + str(default_params['pseudo-tag'])
 
-    if opt.bp_dyn_thres:
+    if opt.bp_dyn_thres and opt.bp_dyn_thres != 0:
         outdir = outdir + '_dyn' + str(opt.bp_dyn_thres)
-    else:
-        outdir = outdir + '_dyn' + str(default_params['dyn-thres'])
 
-    if opt.bp_tc_bit:
+    if opt.bp_tc_bit and opt.bp_tc_bit != 0:
         outdir = outdir + '_tc' + str(opt.bp_tc_bit)
-    else:
-        outdir = outdir + '_tc' + str(default_params['tc-bit'])
 
-    if opt.bp_weight_bit:
+    if opt.bp_weight_bit and opt.bp_weight_bit != default_params['w_bit']:
         outdir = outdir + '_w' + str(opt.bp_weight_bit)
-    else:
-        outdir = outdir + '_w' + str(default_params['w_bit'])
 
     if opt.bp_redundant_bit and opt.bp_redundant_bit > 1:
         outdir = outdir + '_redund' + str(opt.bp_redundant_bit)
