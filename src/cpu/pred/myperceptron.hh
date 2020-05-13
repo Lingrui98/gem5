@@ -9,7 +9,7 @@
 
 #include "base/types.hh"
 #include "cpu/pred/bpred_unit.hh"
-#include "cpu/pred/sat_counter.hh"
+#include "base/sat_counter.hh"
 #include "params/MyPerceptron.hh"
 
 enum hash_type{
@@ -28,7 +28,8 @@ class MyPerceptron : public BPredUnit{
         void uncondBranch(ThreadID tid, Addr pc, void * &bp_history);
         void btbUpdate(ThreadID tid, Addr branch_addr, void * &bp_history);
         void update(ThreadID tid, Addr branch_addr, bool taken,\
-                void *bp_history, bool squashed);
+                void *bp_history, bool squashed, const StaticInstPtr &inst,
+                Addr addr);
         void squash(ThreadID tid, void * bp_history);
         unsigned getGHR(ThreadID tid, void * bp_history) const;
 

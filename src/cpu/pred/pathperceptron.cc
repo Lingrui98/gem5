@@ -2,10 +2,6 @@
 
 //#include <iostream>
 #include <fstream>
-<<<<<<< HEAD
-
-=======
->>>>>>> 2e0eed564d2199f91b3ba7034687217649ebc832
 #include "base/bitfield.hh"
 #include "base/intmath.hh"
 #include "debug/PAthPerceptron.hh"
@@ -205,7 +201,8 @@ PathPerceptron::uncondBranch(ThreadID tid, Addr BrAddr, void * &bp_history)
 
 void
 PathPerceptron::update(ThreadID tid, Addr BrAddr, bool taken,
-                        void *bp_history, bool squashed)
+                        void *bp_history, bool squashed,
+                        const StaticInstPtr &inst, Addr addr)
 {
 #ifdef RECORD
     static long count = 0;

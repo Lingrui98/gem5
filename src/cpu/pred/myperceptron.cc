@@ -65,8 +65,8 @@ MyPerceptron::MyPerceptron(const MyPerceptronParams *params)
 
         for (sat_iter = TC.begin(); sat_iter != TC.end(); sat_iter++)
             (*sat_iter).reset();
-        DPRINTFR(MYperceptron, "counter init is %d, max is %d\n",
-            TC_initialValue, TC[0].readMax());
+        DPRINTFR(MYperceptron, "counter init is %d\n",
+            TC_initialValue);
     }
     else{
         if (redundantBit > 0)
@@ -452,13 +452,13 @@ void
 MyPerceptron::updateThreshold(int t_index, bool incorrect, bool unconfident)
 {
     if (incorrect){
-        if (TC[t_index].increment()){
+        if (TC[t_index]++){
             thetas[t_index] += 1;
             TC[t_index].reset();
         }
     }
     else if (unconfident){
-        if (TC[t_index].decrement()){
+        if (TC[t_index]--){
             thetas[t_index] -= 1;
             TC[t_index].reset();
         }
@@ -468,7 +468,8 @@ MyPerceptron::updateThreshold(int t_index, bool incorrect, bool unconfident)
 
 void
 MyPerceptron::update(ThreadID tid, Addr branch_addr, bool taken,
-                     void *bp_history, bool squashed)
+                     void *bp_history, bool squashed,
+                     const StaticInstPtr &inst, Addr addr)
 {
     static uint64_t count = 0;
 #if NU_RATIO
