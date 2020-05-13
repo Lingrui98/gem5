@@ -102,6 +102,14 @@ MyPerceptron::MyPerceptron(const MyPerceptronParams *params)
             *u_iter += 1.93 * pseudoTaggingBit;
     }
 
+    /********* For DHLF ********/
+    mispTbl.assign(globalHistoryBits+1, 0);
+    cur_len = 8;
+    cur_misp = 0;
+    step_cnt = 0;
+    isWarmup = false;
+
+
     DPRINTFR(MYperceptron, "globalPredictorSize is %d, globalHistoryBits is\
 %d, size of perceptrons is %d, historyRegisterMask is %d,\
 redundant bit is %d, maxHisLen is %d\n",
@@ -147,11 +155,14 @@ MyPerceptron::getIndex(hash_type type, Addr branch_addr,
         return (branch_addr >> 2) % globalPredictorSize;
     else if (type == BITWISE_XOR){
         uint64_t x = branch_addr >> 2;
-        uint64_t y = branch_addr >> (2 + globalHistoryBits);
+        // uint64_t y = branch_addr >> (2 + globalHistoryBits);
+        for (int i = 0; i < cur_len; i++) {
+            x ^= global_history[i] << i;
+        }
         //uint64_t g = global_history;
         //g ^= global_history >> globalHistoryBits;
         //g ^= global_history >> (globalHistoryBits * 2);
-        return (x ^ y) % globalPredictorSize;
+        return x % globalPredictorSize;
     }
     else if (type == PRIME_DISPLACEMENT){
         uint64_t T = branch_addr >> (2 + globalHistoryBits);
@@ -225,24 +236,24 @@ MyPerceptron::computeOutput(uint8_t *history, int index, Addr addr)
     // Weights
 
     for (int i = 0; i < sizeOfPerceptrons; i++){
-        if (input[i]){
-            out += perceptron[i+1];
-        }
-        else{
-            out -= perceptron[i+1];
-        }
+            if (input[i]){
+                out += perceptron[i+1];
+            }
+            else{
+                out -= perceptron[i+1];
+            }
     }
 
     if (redundantBit > 0){
         for (int i = 0; i < sizeOfPerceptrons; i++){
             for (int j = 1; j < redundantBit; j++){
                 int ptr = i + j * sizeOfPerceptrons;
-                if (input[ptr]){
-                    out += perceptron[ptr+1];
-                }
-                else{
-                    out -= perceptron[ptr+1];
-                }
+                    if (input[ptr]){
+                        out += perceptron[ptr+1];
+                    }
+                    else{
+                        out -= perceptron[ptr+1];
+                    }
             }
         }
         // Recycle memory if newed
@@ -293,7 +304,7 @@ MyPerceptron::lookup(ThreadID tid, Addr branch_addr, void * &bp_history)
     int out = computeOutput(global_history, index, branch_addr);
 
     // Use the sign bit as the result
-    bool taken = (out >= 0);
+    bool taken = (out > 0);
 
 #if COUNT
     int t_index;
@@ -343,6 +354,7 @@ DPRINTFR(MYperceptron, "At the %lluth lookup, %d%% less than theta(%d),\
     for (int i = 0; i < maxHisLen; i++)
         history->globalHistory[i] = threadHistory[tid].globalHistory[i];
     history->globalPredTaken = taken;
+    history->isUncond = false;
     bp_history = (void *)history;
 
     // Speculative updates the GHR because of OoO
@@ -359,6 +371,7 @@ MyPerceptron::uncondBranch(ThreadID tid, Addr pc, void * &bp_history)
         history->globalHistory[i] = threadHistory[tid].globalHistory[i];
     history->globalPredTaken = true;
     history->globalUsed = true;
+    history->isUncond = true;
     bp_history = static_cast<void *>(history);
     updateGlobalHist(tid, true);
 }
@@ -477,6 +490,13 @@ MyPerceptron::update(ThreadID tid, Addr branch_addr, bool taken,
     // Get the prediction
     BPHistory *history = static_cast <BPHistory *>(bp_history);
 
+    bool is_uncond = history->isUncond;
+    // Do not update on unconditional branches
+    if (is_uncond){
+        delete history;
+        return;
+    }
+
     // Get the global history of this thread
     uint8_t *global_history = history->globalHistory;
 
@@ -567,6 +587,46 @@ MyPerceptron::update(ThreadID tid, Addr branch_addr, bool taken,
         DPRINTFR(MYperceptron, "At %lluth update\n", count);
     }
 #endif
+
+    /********* For DHLF ********/
+    // step_cnt++;
+    // if (incorrect && !isWarmup) cur_misp++;
+    // // Check whether change history length
+    // if (step_cnt >= step) {
+    //     step_cnt = 0;
+    //     // End of warm up period
+    //     if (isWarmup) {
+    //         isWarmup = false;
+    //     }
+    //     else {
+    //         // Record current misprediction count
+    //         mispTbl[cur_len] = cur_misp;
+    //         cur_misp = 0;
+
+    //         // Check whether there is better hislen to be xored
+    //         int minMisp = step+1; // MAX_VAL
+    //         int minMispPtr = -1;
+    //         for (int i = 0; i <= globalHistoryBits; i++) {
+    //             // Only change when current hislen is not the BEST
+    //             if (mispTbl[i] < minMisp) {
+    //                 minMisp = mispTbl[i];
+    //                 minMispPtr = i;
+    //             }
+    //         }
+    //         if (minMispPtr > cur_len) {
+    //             cur_len++;
+    //             isWarmup = true;
+    //             DPRINTFR(MYperceptron,
+    //                  "hislen altered from %d to %d\n", cur_len-1, cur_len);
+    //         }
+    //         else if (minMispPtr < cur_len) {
+    //             cur_len--;
+    //             isWarmup = true;
+    //             DPRINTFR(MYperceptron,
+    //                  "hislen altered from %d to %d\n", cur_len+1, cur_len);
+    //         }
+    //     }
+    // }
 
     if (!squashed){
         delete history;

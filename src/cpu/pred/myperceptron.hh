@@ -100,6 +100,15 @@ class MyPerceptron : public BPredUnit{
         // Threshold co*unter
         std::vector<SatCounter> TC;
 
+        /********* For DHLF ********/
+        // Misprediction table
+        std::vector<int> mispTbl;
+        int step = 2 << 13;       // 16K
+        int cur_len;
+        int cur_misp;
+        int step_cnt;
+        bool isWarmup;
+
         void train(std::vector<int>& perceptron, std::vector<int>& pperceptron,
                 bool taken, uint8_t *global_history, Addr branch_addr);
 
@@ -117,6 +126,7 @@ class MyPerceptron : public BPredUnit{
             uint8_t *globalHistory;
             bool globalPredTaken;
             bool globalUsed;
+            bool isUncond;
 
             BPHistory(unsigned hislen){
                 globalHistory = new uint8_t [hislen];
