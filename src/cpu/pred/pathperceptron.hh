@@ -35,7 +35,6 @@ private:
   unsigned hislen;
   unsigned maxhislen;
   unsigned bitsPerWeight;
-
   inline int getIndex(Addr BrAddr);
   inline void updatePath(std::vector<Addr> &path, Addr BrAddr);
   inline void updateR(std::vector<int> &SR, int index, bool taken);

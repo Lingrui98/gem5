@@ -2,7 +2,10 @@
 
 //#include <iostream>
 #include <fstream>
+<<<<<<< HEAD
 
+=======
+>>>>>>> 2e0eed564d2199f91b3ba7034687217649ebc832
 #include "base/bitfield.hh"
 #include "base/intmath.hh"
 #include "debug/PAthPerceptron.hh"
