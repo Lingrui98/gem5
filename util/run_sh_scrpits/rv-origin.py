@@ -12,6 +12,8 @@ from multiprocessing import Pool
 from multiprocessing import cpu_count
 import common as c
 import argparse
+import pandas as pd
+from time_optimize import *
 
 numIQ = 128
 
@@ -24,6 +26,8 @@ home = os.getenv('HOME')
 res_dir = pjoin(home, 'gem5/gem5-results/')
 
 arch = 'RISCV'
+
+default_bp = 'MyPerceptron'
 
 default_params = {\
     'size': 256,
@@ -110,6 +114,9 @@ def parser_add_arguments(parser):
 
     parser.add_argument('-o', '--output-dir', action='store', type=str,
                         help='Specify the output directory')
+    
+    parser.add_argument('-t', '--record-time', action='store_true', default=True,
+                        help='To record time that each benchmark used')
 
     # params of perceptron based branch predictor
     parser.add_argument('--bp-size', action='store', type=int,
@@ -156,7 +163,8 @@ def parser_add_arguments(parser):
                         help='Use MultiperspectivePerceptron 64KB \
                         as the branch predictor')
     
-    use_bp.add_argument('--use-other-bp', action='store',
+    use_bp.add_argument('--use-other-bp', action='store',\
+                        default=None,
                         help='Use other implemented branch predictors')
 
 
@@ -271,10 +279,41 @@ def run(args):
 
     if prerequisite:
         print('cpt flag found, is going to run gem5 on', benchmark)
+        # Add time records
+        start_t = time.time()
         c.avoid_repeated(rv_origin, outdir_b,
                 benchmark, some_extra_args, outdir_b)
+        end_t = time.time()
+        time_elapsed = end_t - start_t
+        print('\n%s used %ds(%dmin)\n' %\
+            (benchmark, int(time_elapsed), int(time_elapsed/60.0)))
+        return {benchmark: int(time_elapsed)}
     else:
         print('prerequisite not satisified, abort on', benchmark)
+        return None
+
+def wrap_time_stat(res, bp=None):
+    stat = [x for x in res if x is not None]
+    if len(stat) == 0:
+        exit()
+    dic = {}
+    for item in stat:
+        dic.update(item)
+    if bp == None:
+        bp = default_bp
+    print({bp:dic})
+    return {bp : dic}
+
+def record_time(stat):
+    new_df = pd.DataFrame.from_dict(stat, orient='index')
+    # If statistics exist, load and add current to the end
+    if os.path.exists('time_stat.csv'):
+        df = pd.DataFrame(pd.read_csv('time_stat.csv', index_col=0))
+        df = pd.concat([df,new_df])
+    else:
+        df = new_df
+    print(df)
+    df.to_csv('time_stat.csv', index=True)
 
 
 def main():
@@ -308,15 +347,23 @@ def main():
         for bench in opt.specified_benchmark:
             benchmarks.append(bench)
 
+    bp = opt.use_other_bp if opt.use_other_bp != None else default_bp
+#TODO: Optimize orders of benchmark according to num_thread
+    if (os.path.exists('time_stat.csv')):
+        benchmarks = optimize(num_thread, benchmarks, bp)
+
     print(benchmarks)
     print(opt)
     if num_thread > 1:
         p = Pool(num_thread)
-        #print(len(benchmarks))
         args = [[b, opt] for b in benchmarks]
-        #print(args)
-        #exit()
-        p.map(run, args)
+        res = p.map(run, args)
+        if (opt.record_time):
+            if opt.use_other_bp != None:
+                time_stat = wrap_time_stat(res,opt.use_other_bp)
+            else:
+                time_stat = wrap_time_stat(res)
+            record_time(time_stat)
     else:
         run([benchmarks[0], opt])
 
