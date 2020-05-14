@@ -2,15 +2,11 @@
 
 import sh
 import subprocess
+from common import run
 
 size   = [141, 234, 442, 546, 1092]
 hislen = [28, 34, 36, 59, 59]
 w_bit  = [8, 8, 8, 8, 8]
-
-def run(command):
-    out = subprocess.check_output(command)
-    out_text = out.decode('utf-8')
-    print(out_text)
 
 num_thread = 6
 
@@ -25,4 +21,3 @@ for i in range(5):
                 '-a']
     run(options)
     options = [rv_origin]
-

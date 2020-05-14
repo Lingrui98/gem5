@@ -2,7 +2,7 @@
 
 import sh
 import subprocess
-from test import run
+from common import run
 
 size = 546
 hislen = 59

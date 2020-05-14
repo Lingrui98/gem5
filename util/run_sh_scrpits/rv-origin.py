@@ -87,6 +87,8 @@ def out_dir_gen(opt):
         outdir = res_dir + 'mpp_8KB'
     if opt.use_mpp64KB:
         outdir = res_dir + 'mpp_64KB'
+    if opt.use_other_bp != None:
+        outdir = res_dir + opt.use_other_bp
     if opt.output_dir:
         outdir = res_dir + opt.output_dir
     print('out dir is', outdir)
@@ -153,6 +155,9 @@ def parser_add_arguments(parser):
     use_bp.add_argument('--use-mpp64KB', action='store_true',
                         help='Use MultiperspectivePerceptron 64KB \
                         as the branch predictor')
+    
+    use_bp.add_argument('--use-other-bp', action='store',
+                        help='Use other implemented branch predictors')
 
 
 def rv_origin(benchmark, some_extra_args, outdir_b):
@@ -214,6 +219,8 @@ def rv_origin(benchmark, some_extra_args, outdir_b):
             options += ['--bp-type=TournamentBP']
         elif opt.use_mpp8KB:
             options += ['--bp-type=MultiperspectivePerceptron8KB']
+        elif opt.use_other_bp != None:
+            options += ['--bp-type='+opt.use_other_bp]
         else:
             if opt.bp_size != None:
                 options += ['--bp-size={}'.format(opt.bp_size)]

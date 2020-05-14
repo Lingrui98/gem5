@@ -1,7 +1,7 @@
 import os
 import sh
 from os.path import join as pjoin
-
+import subprocess
 
 def avoid_repeated(func, outdir, *args, **kwargs):
     func_name = func.__name__
@@ -62,3 +62,19 @@ def gem5_cpt_dir(arch):
             'RISCV': '/home/share/spec-simpoint-cpt-riscv-gcc-8.2',
             }
     return cpt_dirs[arch]
+
+def run(command):
+    out = subprocess.check_output(command)
+    out_text = out.decode('utf-8')
+    print(out_text)
+
+data_proc_path = '/home/glr/projects/gem5_data_proc'
+
+
+def get_data(bp):
+    curr_dir = os.getcwd()
+    os.chdir(data_proc_path)
+    # print(os.getcwd())
+    run(['./get_all_data.py',
+         '-s='+ bp])
+    os.chdir(curr_dir)

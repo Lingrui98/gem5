@@ -10,6 +10,7 @@ from multiprocessing import Pool
 from multiprocessing import cpu_count
 import argparse
 import subprocess
+from common import run
 
 num_bench = 22
 
@@ -65,11 +66,6 @@ def parser_add_arguments(parser):
 
     parser.add_argument('--all-benchmarks', action='store_true',
                         help='Switch to run all 22 benchmarks')
-
-def run(command):
-    out = subprocess.check_output(command)
-    out_text = out.decode('utf-8')
-    print(out_text)
 
 def main():
     usage_str = '[-d | -a | -i | -b | -p | --dynamic-thres |\

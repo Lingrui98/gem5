@@ -2,7 +2,7 @@
 
 import os
 import subprocess
-from test import run
+from common import run
 import math as m
 
 rv_origin = './rv-origin.py'
