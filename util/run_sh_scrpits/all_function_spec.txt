@@ -1,3 +1,4 @@
+mcf
 hmmer
 gobmk
 cactusADM
@@ -9,7 +10,6 @@ sjeng
 astar
 povray
 omnetpp
-mcf
 gcc
 h264ref
 perlbench

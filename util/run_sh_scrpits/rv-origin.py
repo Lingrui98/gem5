@@ -36,6 +36,17 @@ default_params = {\
     'w_bit': 8
 }
 
+BP_TYPES = {
+    'LocalBP',
+    'MyPerceptron',
+    'PathPerceptron',
+    'TournamentBP',
+    'BiModeBP',
+    'TAGE',
+    'MultiperspectivePerceptron8KB',
+    'MultiperspectivePerceptron64KB'
+}
+
 
 def out_dir_gen(opt):
     outdir = res_dir + 'my'
@@ -72,6 +83,10 @@ def out_dir_gen(opt):
         outdir = outdir + '_redund' + str(opt.bp_redundant_bit)
 
     # Override
+    if opt.use_mpp8KB:
+        outdir = res_dir + 'mpp_8KB'
+    if opt.use_mpp64KB:
+        outdir = res_dir + 'mpp_64KB'
     if opt.output_dir:
         outdir = res_dir + opt.output_dir
     print('out dir is', outdir)
@@ -130,6 +145,14 @@ def parser_add_arguments(parser):
 
     use_bp.add_argument('--use-tournament', action='store_true',
                         help='Use Tournament as the branch predictor')
+    
+    use_bp.add_argument('--use-mpp8KB', action='store_true',
+                        help='Use MultiperspectivePerceptron 8KB \
+                        as the branch predictor')
+
+    use_bp.add_argument('--use-mpp64KB', action='store_true',
+                        help='Use MultiperspectivePerceptron 64KB \
+                        as the branch predictor')
 
 
 def rv_origin(benchmark, some_extra_args, outdir_b):
@@ -189,6 +212,8 @@ def rv_origin(benchmark, some_extra_args, outdir_b):
             options += ['--use-ltage']
         elif opt.use_tournament:
             options += ['--bp-type=TournamentBP']
+        elif opt.use_mpp8KB:
+            options += ['--bp-type=MultiperspectivePerceptron8KB']
         else:
             if opt.bp_size != None:
                 options += ['--bp-size={}'.format(opt.bp_size)]
