@@ -1,4 +1,3 @@
-mcf
 hmmer
 gobmk
 cactusADM
@@ -13,6 +12,7 @@ omnetpp
 gcc
 h264ref
 perlbench
+mcf
 namd
 libquantum
 gamess
