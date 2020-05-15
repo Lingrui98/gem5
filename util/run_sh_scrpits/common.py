@@ -77,7 +77,7 @@ def get_data(d=None):
     # print(os.getcwd())
     if d != None:
         run(['./get_all_data.py',
-            '-s='+ bp])
+            '-s='+ d])
     else:
         run(['./get_all_data.py',
             '-n'])

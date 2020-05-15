@@ -266,7 +266,7 @@ def rv_origin(benchmark, some_extra_args, outdir_b):
 
 def run(args):
     [benchmark, opt] = args
-    print(benchmark, opt)
+    # print(benchmark, opt)
     outdir = out_dir_gen(opt)
     outdir_b = pjoin(outdir, benchmark)
     if not os.path.isdir(outdir_b):
@@ -294,14 +294,25 @@ def run(args):
 
 def wrap_time_stat(res, bp=None):
     stat = [x for x in res if x is not None]
+
+    # For tests that has been run, return None
+    has_run = False
+    for dic in stat:
+        for v in dic.values():
+            if v == 0:
+                has_run = True
+    if has_run:
+        print("Some test has been run, skip recording time")
+        return None
+    # If no benchmark was run
     if len(stat) == 0:
-        exit()
+        return None
     dic = {}
     for item in stat:
         dic.update(item)
     if bp == None:
         bp = default_bp
-    print({bp:dic})
+    # print({bp:dic})
     return {bp : dic}
 
 def record_time(stat):
@@ -352,18 +363,25 @@ def main():
     if (os.path.exists('time_stat.csv')):
         benchmarks = optimize(num_thread, benchmarks, bp)
 
-    print(benchmarks)
-    print(opt)
+    # print(benchmarks)
+    # print(opt)
     if num_thread > 1:
         p = Pool(num_thread)
         args = [[b, opt] for b in benchmarks]
         res = p.map(run, args)
+        has_run = False
+        for dic in res:
+            for v in dic.values():
+                if (v == 0):
+                    has_run = True
         if (opt.record_time):
+            time_stat = None
             if opt.use_other_bp != None:
                 time_stat = wrap_time_stat(res,opt.use_other_bp)
             else:
                 time_stat = wrap_time_stat(res)
-            record_time(time_stat)
+            if time_stat != None:
+                record_time(time_stat)
         # Get data of current test
         c.get_data()
     else:

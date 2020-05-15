@@ -12,7 +12,8 @@ new_bps = [
     'MultiperspectivePerceptronTAGE64KB',
     'TAGE_SC_L_8KB',
     'TAGE_SC_L_64KB',
-    'LTAGE'
+    'LTAGE',
+    'TournamentBP'
 ]
 
 rv_origin = './rv-origin.py'
@@ -24,5 +25,4 @@ if __name__ == '__main__':
                     '-a',
                     '--use-other-bp='+bp]
         run(options)
-        get_data(bp)
         options = [rv_origin]
