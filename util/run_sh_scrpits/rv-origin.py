@@ -364,6 +364,8 @@ def main():
             else:
                 time_stat = wrap_time_stat(res)
             record_time(time_stat)
+        # Get data of current test
+        c.get_data()
     else:
         run([benchmarks[0], opt])
 

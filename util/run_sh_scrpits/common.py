@@ -71,10 +71,14 @@ def run(command):
 data_proc_path = '/home/glr/projects/gem5_data_proc'
 
 
-def get_data(bp):
+def get_data(d=None):
     curr_dir = os.getcwd()
     os.chdir(data_proc_path)
     # print(os.getcwd())
-    run(['./get_all_data.py',
-         '-s='+ bp])
+    if d != None:
+        run(['./get_all_data.py',
+            '-s='+ bp])
+    else:
+        run(['./get_all_data.py',
+            '-n'])
     os.chdir(curr_dir)
