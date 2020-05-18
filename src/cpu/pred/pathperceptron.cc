@@ -12,7 +12,7 @@
 PathPerceptron::PathPerceptron(const PathPerceptronParams *params)
   : BPredUnit(params),
         globalPredictorSize(params->globalPredictorSize),
-        hislen (params->hislen),
+        hislen(params->hislen),
         maxhislen(params->maxhislen),
         threadHistory(params->numThreads)
 {

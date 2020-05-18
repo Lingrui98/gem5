@@ -29,7 +29,7 @@ arch = 'RISCV'
 
 default_bp = 'MyPerceptron'
 
-default_params = {\
+default_params_my = {\
     'size': 256,
     'index': 'MODULO',
     'his_len': 32,
@@ -38,6 +38,11 @@ default_params = {\
     'dyn-thres': 0,
     'tc-bit': 0,
     'w_bit': 8
+}
+
+default_params_path = {\
+    'size': 256,
+    'his_len': 32,
 }
 
 BP_TYPES = {
@@ -53,46 +58,59 @@ BP_TYPES = {
 
 
 def out_dir_gen(opt):
-    outdir = res_dir + 'my'
+    # Using default myperceptron bp
+    out_dir = ''
+    if opt.use_other_bp == None:
+        outdir = res_dir + 'my'
 
-    if opt.bp_size:
-        outdir = outdir + '_size' + str(opt.bp_size)
+        if opt.bp_size:
+            outdir = outdir + '_size' + str(opt.bp_size)
+        else:
+            outdir = outdir + '_size' + str(default_params_my['size'])
+
+        if opt.bp_history_len:
+            outdir = outdir + '_his' + str(opt.bp_history_len)
+        else:
+            outdir = outdir + '_his' + str(default_params_my['his_len'])
+
+        if opt.bp_index_type and opt.bp_index_type != default_params_my['index']:
+            outdir = outdir + '_index' + str(opt.bp_index_type)
+
+        if opt.bp_learning_rate and opt.bp_learning_rate != default_params_my['lr']:
+            outdir = outdir + '_lr' + str(opt.bp_learning_rate)
+
+        if opt.bp_pseudo_tagging and opt.bp_pseudo_tagging != 0:
+            outdir = outdir + '_pseudotag' + str(opt.bp_pseudo_tagging)
+
+        if opt.bp_dyn_thres and opt.bp_dyn_thres != 0:
+            outdir = outdir + '_dyn' + str(opt.bp_dyn_thres)
+
+        if opt.bp_tc_bit and opt.bp_tc_bit != 0:
+            outdir = outdir + '_tc' + str(opt.bp_tc_bit)
+
+        if opt.bp_weight_bit and opt.bp_weight_bit != default_params_my['w_bit']:
+            outdir = outdir + '_w' + str(opt.bp_weight_bit)
+
+        if opt.bp_redundant_bit and opt.bp_redundant_bit > 1:
+            outdir = outdir + '_redund' + str(opt.bp_redundant_bit)
+
     else:
-        outdir = outdir + '_size' + str(default_params['size'])
-
-    if opt.bp_history_len:
-        outdir = outdir + '_his' + str(opt.bp_history_len)
-    else:
-        outdir = outdir + '_his' + str(default_params['his_len'])
-
-    if opt.bp_index_type and opt.bp_index_type != default_params['index']:
-        outdir = outdir + '_index' + str(opt.bp_index_type)
-
-    if opt.bp_learning_rate and opt.bp_learning_rate != default_params['lr']:
-        outdir = outdir + '_lr' + str(opt.bp_learning_rate)
-
-    if opt.bp_pseudo_tagging and opt.bp_pseudo_tagging != 0:
-        outdir = outdir + '_pseudotag' + str(opt.bp_pseudo_tagging)
-
-    if opt.bp_dyn_thres and opt.bp_dyn_thres != 0:
-        outdir = outdir + '_dyn' + str(opt.bp_dyn_thres)
-
-    if opt.bp_tc_bit and opt.bp_tc_bit != 0:
-        outdir = outdir + '_tc' + str(opt.bp_tc_bit)
-
-    if opt.bp_weight_bit and opt.bp_weight_bit != default_params['w_bit']:
-        outdir = outdir + '_w' + str(opt.bp_weight_bit)
-
-    if opt.bp_redundant_bit and opt.bp_redundant_bit > 1:
-        outdir = outdir + '_redund' + str(opt.bp_redundant_bit)
+        # If using pathperceptron
+        if opt.use_other_bp == 'PathPerceptron':
+            outdir = res_dir + 'path'
+            if opt.bp_size:
+                outdir = outdir + '_size' + str(opt.bp_size)
+            else:
+                outdir = outdir + '_size' + str(default_params_path['size'])
+            if opt.bp_history_len:
+                outdir = outdir + '_his' + str(opt.bp_history_len)
+            else:
+                outdir = outdir + '_his' + str(default_params_path['his_len'])
+        # If using other bp
+        else:
+            outdir = res_dir + opt.use_other_bp
 
     # Override
-    if opt.use_mpp8KB:
-        outdir = res_dir + 'mpp_8KB'
-    if opt.use_mpp64KB:
-        outdir = res_dir + 'mpp_64KB'
-    if opt.use_other_bp != None:
-        outdir = res_dir + opt.use_other_bp
     if opt.output_dir:
         outdir = res_dir + opt.output_dir
     print('out dir is', outdir)
@@ -119,6 +137,7 @@ def parser_add_arguments(parser):
                         help='To record time that each benchmark used')
 
     # params of perceptron based branch predictor
+    # Currently size and hislen is shared by myperceptron and pathperceptron
     parser.add_argument('--bp-size', action='store', type=int,
                         help='Global predictor size')
 
@@ -227,6 +246,13 @@ def rv_origin(benchmark, some_extra_args, outdir_b):
             options += ['--bp-type=TournamentBP']
         elif opt.use_mpp8KB:
             options += ['--bp-type=MultiperspectivePerceptron8KB']
+        elif opt.use_other_bp == 'PathPerceptron':
+            options += ['--bp-type='+'PathPerceptron']
+            options += ['--use-pathperceptron']
+            if opt.bp_size != None:
+                options += ['--bp-size={}'.format(opt.bp_size)]
+            if opt.bp_history_len != None:
+                options += ['--bp-history-len={}'.format(opt.bp_history_len)]
         elif opt.use_other_bp != None:
             options += ['--bp-type='+opt.use_other_bp]
         else:

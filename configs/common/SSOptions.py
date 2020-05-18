@@ -66,11 +66,6 @@ def addO3Options(parser):
             action='store', type=int,
             help='n-bits to represent a history bit')
 
-    parser.add_option("--use-ltage",
-            action='store_true',
-            help='Use L-TAGE as branch predictor')
-
-    parser.add_option("--use-tournament",
-            action='store_true',
-            help='Use Tournament as branch predictor')
-
+    parser.add_option("--use-pathperceptron",
+            action='store_true', default=False,
+            help='Use PathPerceptron as branch predictor')
